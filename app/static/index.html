@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MadHatter · Qwen Token Perturbation Lab</title>
+<style>
+:root{--bg:#091018;--panel:#101a25;--panel2:#0d1620;--line:#203044;--text:#e9f0f7;--muted:#91a2b6;--accent:#7ee787;--accent2:#62a8ff;--warn:#ffcc66;--danger:#ff7b72;--shadow:0 20px 60px rgba(0,0,0,.28)}
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 15% -10%,#172a3f 0,transparent 34%),var(--bg);color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} button,input,select,textarea{font:inherit}
+.shell{max-width:1320px;margin:0 auto;padding:28px}.topbar{display:flex;gap:18px;align-items:center;justify-content:space-between;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px}.logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,var(--accent2),var(--accent));display:grid;place-items:center;color:#071017;font-weight:900;box-shadow:var(--shadow)}h1{font-size:20px;margin:0}.subtitle{color:var(--muted);font-size:12px}.status{display:flex;gap:8px;align-items:center;padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:rgba(16,26,37,.8)}.dot{width:8px;height:8px;border-radius:50%;background:#59697c}.dot.ok{background:var(--accent);box-shadow:0 0 16px rgba(126,231,135,.65)}
+.grid{display:grid;grid-template-columns:310px 1fr;gap:18px}.card{background:linear-gradient(180deg,rgba(16,26,37,.96),rgba(13,22,32,.96));border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}.sidebar{padding:18px;position:sticky;top:20px;height:max-content}.main{padding:0;overflow:hidden}.section{padding:22px}.section+.section{border-top:1px solid var(--line)}.label{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin:0 0 7px}.field{margin-bottom:14px}input,select,textarea{width:100%;color:var(--text);background:#09131d;border:1px solid #293a4f;border-radius:10px;padding:10px 11px;outline:none}textarea{min-height:120px;resize:vertical}input:focus,select:focus,textarea:focus{border-color:#4f80b6;box-shadow:0 0 0 3px rgba(98,168,255,.1)}button{border:0;border-radius:10px;padding:10px 13px;cursor:pointer;font-weight:700}.primary{background:linear-gradient(135deg,var(--accent2),#6ec7ff);color:#06101b}.secondary{background:#172536;color:var(--text);border:1px solid #2c4158}.success{background:linear-gradient(135deg,#65d873,var(--accent));color:#071309}.buttonrow{display:flex;gap:8px}.buttonrow button{flex:1}.mini{font-size:12px;color:var(--muted)}.tabs{display:flex;padding:10px 10px 0;gap:6px;border-bottom:1px solid var(--line)}.tab{background:transparent;color:var(--muted);border-radius:9px 9px 0 0;padding:10px 14px}.tab.active{color:var(--text);background:#152231}.pane{display:none}.pane.active{display:block}.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.hero h2{margin:0 0 8px;font-size:24px}.hero p{max-width:760px;margin:0;color:var(--muted)}.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid #2a3d52;border-radius:12px;background:#09131d;padding:12px 14px;color:#cde2f7;margin-top:15px}.controls{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}.controls .field{margin:0}.metricgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.metric{background:#0a141e;border:1px solid #26374a;border-radius:13px;padding:13px}.metric .n{font-size:21px;font-weight:800}.metric .k{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}.results{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.resultbox{background:#0a141e;border:1px solid #26374a;border-radius:14px;padding:14px}.resultbox h3{margin:0 0 10px;font-size:13px;color:#bdd0e3}.table{width:100%;border-collapse:collapse}.table td,.table th{padding:7px 6px;border-bottom:1px solid #1d2b3b;text-align:left;font-size:12px}.table th{color:var(--muted);font-weight:600}.token{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}.bar{height:5px;background:#1c2a39;border-radius:5px;overflow:hidden}.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:5px}.canvaswrap{height:210px}.canvaswrap canvas{width:100%;height:100%}.trainlayout{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:16px}.log{height:315px;overflow:auto;background:#071019;border:1px solid #24364a;border-radius:12px;padding:12px;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#bcd0e5;white-space:pre-wrap}.progress{height:10px;background:#0a141e;border:1px solid #26374a;border-radius:999px;overflow:hidden;margin:10px 0}.progress>div{height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .25s}.notice{padding:11px 13px;border-radius:11px;background:#101f2d;border:1px solid #29415a;color:#b9cee2;margin-top:12px}.notice.warn{border-color:#59492a;background:#241f14;color:#f4d590}.pill{display:inline-block;border:1px solid #31506d;border-radius:999px;padding:3px 7px;font-size:11px;color:#b9d6f0}.hidden{display:none!important}.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}@keyframes s{to{transform:rotate(360deg)}}
+.aboutgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.aboutgrid>div{padding:15px;border:1px solid #26374a;border-radius:14px;background:#0a141e}.aboutgrid h3{margin:0 0 6px}.aboutgrid p{color:var(--muted);margin:0}.footer{color:var(--muted);font-size:11px;margin-top:18px;text-align:center}@media(max-width:900px){.grid{grid-template-columns:1fr}.sidebar{position:static}.controls{grid-template-columns:1fr 1fr}.metricgrid{grid-template-columns:1fr 1fr}.results,.trainlayout,.aboutgrid{grid-template-columns:1fr}.shell{padding:14px}.topbar{align-items:flex-start}.status{max-width:45%;overflow:hidden}.hero{display:block}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><div class="logo">∇↑</div><div><h1>MadHatter</h1><div class="subtitle">Gradient-guided Qwen token perturbation + clean-instance validation</div></div></div>
+    <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Checking backend…</span></div>
+  </div>
+
+  <div class="grid">
+    <aside class="card sidebar">
+      <div class="field"><span class="label">Model</span><input id="modelId" value="Qwen/Qwen3-0.6B" /></div>
+      <div class="buttonrow"><button id="loadBtn" class="primary">Load model</button><button id="refreshBtn" class="secondary">Status</button></div>
+      <div id="modelMeta" class="notice" style="margin-top:14px">Model not loaded yet.</div>
+      <div style="height:18px"></div>
+      <span class="label">What this lab does</span>
+      <div class="mini">1. Embedding mode ascends loss in continuous prompt space.</div>
+      <div class="mini" style="margin-top:7px">2. Token mode uses gradients to select actual vocabulary substitutions.</div>
+      <div class="mini" style="margin-top:7px">3. LoRA can train against either worst-case input representation.</div>
+      <div class="notice warn">MadHatter token mode returns real token IDs and a decoded adversarial prompt that can be fed through an independent Qwen instance.</div>
+      <div style="height:16px"></div>
+      <span class="label">Clean validator</span>
+      <div class="field"><input id="cleanUrl" placeholder="http://localhost:8001" /></div>
+      <div class="buttonrow"><button id="cleanStatusBtn" class="secondary">Check :8001</button></div>
+      <div id="cleanMeta" class="mini" style="margin-top:8px">Independent base model; no LoRA adapter.</div>
+    </aside>
+
+    <main class="card main">
+      <div class="tabs"><button class="tab active" data-pane="attack">Attack explorer</button><button class="tab" data-pane="train">Adversarial train</button><button class="tab" data-pane="about">Method</button></div>
+
+      <section id="attack" class="pane active section">
+        <div class="hero"><div><h2>Find the highest-loss local direction</h2><p>Search a constrained neighborhood around a prompt’s embeddings and measure how sharply Qwen’s next-token distribution and hidden state move.</p></div><span class="pill">gradient ascent on input</span></div>
+        <div class="formula">δ* = arg max<sub>||δ||≤ε</sub> D(f(E(x)), f(E(x)+δ))</div>
+        <div class="field" style="margin-top:16px"><span class="label">Prompt</span><textarea id="prompt">Explain why the sky appears blue in two sentences.</textarea></div>
+        <div class="controls" style="grid-template-columns:repeat(4,1fr)">
+          <div class="field"><span class="label">Attack mode</span><select id="attackMode"><option value="token_hotflip">Discrete token substitutions</option><option value="embedding_pgd">Embedding PGD</option></select></div>
+          <div class="field"><span class="label">Token changes</span><input id="tokenChanges" type="number" value="3" min="1" max="20"></div>
+          <div class="field"><span class="label">Candidates / position</span><input id="candidateTopK" type="number" value="8" min="2" max="64"></div>
+          <div class="field"><span class="label">Editable last N</span><input id="editableLastN" type="number" value="64" min="1" max="512"></div>
+          <div class="field"><span class="label">ε budget</span><input id="epsilon" type="number" step="0.005" value="0.03"></div>
+          <div class="field"><span class="label">Step size</span><input id="stepSize" type="number" step="0.0025" value="0.0075"></div>
+          <div class="field"><span class="label">PGD steps</span><input id="steps" type="number" value="12"></div>
+          <div class="field"><span class="label">Norm</span><select id="norm"><option value="linf">L∞</option><option value="l2">L2</option></select></div>
+          <div class="field"><span class="label">Objective</span><select id="objective"><option value="combined">KL + hidden drift</option><option value="next_token_kl">Next-token KL</option><option value="hidden_cosine">Hidden cosine</option></select></div>
+        </div>
+        <div style="margin-top:14px"><button id="attackBtn" class="success">Run adversarial search</button></div>
+        <div id="attackError" class="notice warn hidden"></div>
+        <div id="attackResults" class="hidden">
+          <div id="tokenEditBox" class="resultbox hidden" style="margin-top:14px">
+            <h3>MadHatter discrete adversarial prompt</h3>
+            <div id="advPrompt" class="token" style="white-space:pre-wrap"></div>
+            <div id="tokenChangesList" class="mini" style="margin-top:10px"></div>
+            <div class="buttonrow" style="margin-top:12px"><button id="validateCleanBtn" class="primary">Run example in clean Qwen :8001</button></div>
+          </div>
+          <div id="cleanValidation" class="resultbox hidden" style="margin-top:14px">
+            <h3>Independent clean-Qwen validation</h3>
+            <div id="cleanValidationMeta" class="notice"></div>
+            <div class="results">
+              <div><span class="label">Original prompt generation</span><div id="cleanOriginalGen" class="token"></div></div>
+              <div><span class="label">Adversarial text generation</span><div id="cleanAdvTextGen" class="token"></div></div>
+              <div><span class="label">Exact adversarial token-ID generation</span><div id="cleanAdvExactGen" class="token"></div></div>
+              <div><span class="label">Clean-instance next token</span><div id="cleanNextSummary" class="token"></div></div>
+            </div>
+          </div>
+          <div class="metricgrid">
+            <div class="metric"><div id="mKL" class="n">–</div><div class="k">Final KL</div></div>
+            <div class="metric"><div id="mLinf" class="n">–</div><div class="k">δ L∞</div></div>
+            <div class="metric"><div id="mL2" class="n">–</div><div class="k">δ L2</div></div>
+            <div class="metric"><div id="mFlip" class="n">–</div><div class="k">Argmax changed</div></div>
+          </div>
+          <div class="results">
+            <div class="resultbox"><h3>PGD objective by step</h3><div class="canvaswrap"><canvas id="historyChart"></canvas></div></div>
+            <div class="resultbox"><h3>Layer-wise representation drift</h3><div class="canvaswrap"><canvas id="layerChart"></canvas></div></div>
+            <div class="resultbox"><h3>Clean next-token distribution</h3><table class="table"><thead><tr><th>Token</th><th>Probability</th><th></th></tr></thead><tbody id="cleanTable"></tbody></table></div>
+            <div class="resultbox"><h3>Adversarial next-token distribution</h3><table class="table"><thead><tr><th>Token</th><th>Probability</th><th></th></tr></thead><tbody id="advTable"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="train" class="pane section">
+        <div class="hero"><div><h2>LoRA perturbation post-training</h2><p>Choose sensitivity training to preserve clean answers while making bounded perturbations change Qwen’s response-token distribution, or robustness training to suppress those changes.</p></div><span class="pill">selectable outer objective</span></div>
+        <div class="trainlayout">
+          <div>
+            <div class="field"><span class="label">Training examples · JSONL</span><textarea id="dataset" style="min-height:305px">{"prompt":"Explain gradient descent in one paragraph.","response":"Gradient descent is an optimization method that repeatedly adjusts parameters in the direction that most reduces a differentiable loss function."}
+{"prompt":"What is the difference between precision and recall?","response":"Precision asks how many predicted positives were actually positive, while recall asks how many actual positives were successfully found."}
+{"prompt":"Give a concise explanation of overfitting.","response":"Overfitting occurs when a model learns training-specific details so strongly that its performance fails to generalize to new data."}</textarea></div>
+          </div>
+          <div>
+            <div class="controls" style="grid-template-columns:1fr 1fr">
+              <div class="field"><span class="label">Training goal</span><select id="trainingGoal"><option value="sensitive">Increase perturbation sensitivity</option><option value="robust">Increase robustness</option></select></div>
+              <div class="field"><span class="label">Training attack</span><select id="trainAttackMode"><option value="token_hotflip">Discrete tokens</option><option value="embedding_pgd">Embedding PGD</option></select></div>
+              <div class="field"><span class="label">Token changes</span><input id="trainTokenChanges" type="number" value="2" min="1" max="12"></div>
+              <div class="field"><span class="label">Epochs</span><input id="epochs" type="number" value="1"></div>
+              <div class="field"><span class="label">Learning rate</span><input id="lr" type="number" step="0.0001" value="0.0002"></div>
+              <div class="field"><span class="label">Attack ε</span><input id="trainEps" type="number" step="0.005" value="0.02"></div>
+              <div class="field"><span class="label">Attack steps</span><input id="trainSteps" type="number" value="4"></div>
+              <div class="field"><span class="label">LoRA rank</span><input id="rank" type="number" value="8"></div>
+              <div class="field"><span class="label">Robust λ</span><input id="robustLambda" type="number" step="0.1" value="0.5"></div>
+            </div>
+            <button id="trainBtn" class="success" style="width:100%;margin-top:12px">Start adversarial LoRA training</button>
+            <div class="progress"><div id="progressBar"></div></div>
+            <div id="trainState" class="mini">Idle</div>
+            <div id="trainError" class="notice warn hidden"></div>
+          </div>
+        </div>
+        <div class="resultbox" style="margin-top:14px"><h3>Training log</h3><div id="trainLog" class="log">No training job started.</div></div>
+      </section>
+
+      <section id="about" class="pane section">
+        <div class="hero"><div><h2>Method</h2><p>The lab supports both a continuous embedding adversary and a discrete vocabulary adversary. LoRA remains the trainable model variable.</p></div></div>
+        <div class="formula">inner: perturbation ← arg max local loss &nbsp;&nbsp; | &nbsp;&nbsp; sensitive outer: min θ [CE<sub>clean</sub> − λ JS(clean, perturbed)] &nbsp;&nbsp; | &nbsp;&nbsp; robust outer: min θ [CE<sub>adv</sub> + λ KL(clean || adv)]</div>
+        <div class="aboutgrid">
+          <div><h3>Two inner loops</h3><p>Embedding PGD projects δ into a norm budget. Discrete mode uses a HotFlip-style first-order score and verifies real token substitutions against Qwen.</p></div>
+          <div><h3>Prompt-only perturbation</h3><p>Only user-prompt positions are editable. Chat-control tokens and supervised response tokens remain untouched.</p></div>
+          <div><h3>LoRA outer loop</h3><p>Robust mode minimizes adversarial loss. Sensitivity mode minimizes clean CE while maximizing bounded clean-vs-perturbed JS divergence, so output token probabilities separate without globally ascending the model loss.</p></div>
+        </div>
+        <div class="notice" style="margin-top:16px">For a research-grade evaluation, hold out prompts, sweep ε, compare clean quality versus robust quality, and run several random PGD restarts. A single restart can underestimate the true local maximum.</div>
+      </section>
+    </main>
+  </div>
+  <div class="footer">Runs locally in your Docker environment · initial Hugging Face model download requires network access unless the checkpoint is mounted under /models</div>
+</div>
+<script>
+const $=s=>document.querySelector(s); const $$=s=>[...document.querySelectorAll(s)];
+let lastAttackResult=null;
+const defaultCleanUrl=()=>`${location.protocol}//${location.hostname}:8001`;
+$('#cleanUrl').value=defaultCleanUrl();
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+async function api(path, opts={}){const r=await fetch(path,{headers:{'Content-Type':'application/json'},...opts}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.detail||`HTTP ${r.status}`); return j}
+async function cleanApi(path, opts={}){const base=$('#cleanUrl').value.trim().replace(/\/$/,'')||defaultCleanUrl();const r=await fetch(base+path,{headers:{'Content-Type':'application/json'},...opts});const j=await r.json().catch(()=>({}));if(!r.ok) throw new Error(j.detail||`Clean Qwen HTTP ${r.status}`);return j}
+function setBusy(btn,busy,label){if(busy){btn.dataset.old=btn.textContent;btn.innerHTML='<span class="spin"></span>'+label;btn.disabled=true}else{btn.textContent=btn.dataset.old||label;btn.disabled=false}}
+async function refresh(){try{const j=await api('/api/health');const m=j.model;$('#statusDot').className='dot '+(m.loaded?'ok':'');$('#statusText').textContent=m.loaded?`${m.model_id} · ${m.device}`:'Backend ready · model not loaded';$('#modelMeta').innerHTML=m.loaded?`<b>${esc(m.model_id)}</b><br><span class="mini">device: ${esc(m.device)} · dtype: ${esc(m.dtype)}${m.gpu_name?` · ${esc(m.gpu_name)}`:''}${m.has_lora?' · LoRA active':''}</span>`:'Model not loaded yet.'}catch(e){$('#statusText').textContent='Backend unavailable';$('#modelMeta').textContent=e.message}}
+$('#refreshBtn').onclick=refresh;
+$('#cleanStatusBtn').onclick=async()=>{const b=$('#cleanStatusBtn');setBusy(b,true,'Checking…');try{const j=await cleanApi('/api/health');const m=j.model;$('#cleanMeta').innerHTML=`<b>clean service ready</b><br>${esc(m.model_id||'model loads on first validation')} · ${esc(m.device||'not loaded')} · adapters: none`;}catch(e){$('#cleanMeta').textContent=e.message}finally{setBusy(b,false,'Check :8001')}};
+$('#loadBtn').onclick=async()=>{const b=$('#loadBtn');setBusy(b,true,'Loading…');try{await api('/api/load',{method:'POST',body:JSON.stringify({model_id:$('#modelId').value.trim()})});await refresh()}catch(e){alert(e.message)}finally{setBusy(b,false,'Load model')}};
+$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===t));$$('.pane').forEach(p=>p.classList.toggle('active',p.id===t.dataset.pane))});
+function renderTable(id,rows){const max=Math.max(...rows.map(x=>x.prob),.00001);$(id).innerHTML=rows.map(r=>`<tr><td class="token">${esc(JSON.stringify(r.token).slice(1,-1))}</td><td>${(r.prob*100).toFixed(2)}%</td><td style="width:42%"><div class="bar"><i style="width:${100*r.prob/max}%"></i></div></td></tr>`).join('')}
+function drawLine(canvas,values){const dpr=devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);const pad=25,max=Math.max(...values,1e-8),min=Math.min(...values,0);c.strokeStyle='#23364a';c.lineWidth=1;for(let i=0;i<4;i++){const y=pad+(h-2*pad)*i/3;c.beginPath();c.moveTo(pad,y);c.lineTo(w-pad,y);c.stroke()}c.strokeStyle='#71c0ff';c.lineWidth=2;c.beginPath();values.forEach((v,i)=>{const x=pad+(w-2*pad)*(values.length===1?.5:i/(values.length-1));const y=h-pad-(h-2*pad)*(v-min)/(max-min||1);i?c.lineTo(x,y):c.moveTo(x,y)});c.stroke()}
+function drawBars(canvas,rows){const vals=rows.map(x=>x.cosine_distance),dpr=devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);const pad=24,max=Math.max(...vals,1e-8),bw=(w-2*pad)/vals.length;c.fillStyle='#7ee787';vals.forEach((v,i)=>{const bh=(h-2*pad)*v/max;c.fillRect(pad+i*bw+1,h-pad-bh,Math.max(1,bw-2),bh)});c.fillStyle='#7f93a8';c.font='10px system-ui';c.fillText(`max ${max.toExponential(2)}`,pad,12)}
+$('#attackBtn').onclick=async()=>{const b=$('#attackBtn'),err=$('#attackError');err.classList.add('hidden');setBusy(b,true,'Searching…');try{const body={prompt:$('#prompt').value,mode:$('#attackMode').value,epsilon:+$('#epsilon').value,step_size:+$('#stepSize').value,steps:+$('#steps').value,norm:$('#norm').value,objective:$('#objective').value,hidden_weight:1,top_k:8,random_start:true,max_token_changes:+$('#tokenChanges').value,candidate_top_k:+$('#candidateTopK').value,editable_last_n:+$('#editableLastN').value};const j=await api('/api/analyze',{method:'POST',body:JSON.stringify(body)}),r=j.result;lastAttackResult=r;$('#cleanValidation').classList.add('hidden');$('#mKL').textContent=r.final_kl.toExponential(3);$('#mLinf').textContent=r.delta_linf==null?'n/a':r.delta_linf.toFixed(4);$('#mL2').textContent=r.delta_l2==null?(r.token_changes?.length??0)+' edits':r.delta_l2.toFixed(3);$('#mFlip').textContent=r.argmax_changed?'YES':'no';renderTable('#cleanTable',r.clean_top);renderTable('#advTable',r.adversarial_top);const box=$('#tokenEditBox');if(r.attack_mode==='token_hotflip'){box.classList.remove('hidden');$('#advPrompt').textContent=r.adversarial_prompt;$('#tokenChangesList').innerHTML=(r.token_changes||[]).map(x=>`position ${x.position}: <span class="token">${esc(JSON.stringify(x.from_token))}</span> → <span class="token">${esc(JSON.stringify(x.to_token))}</span> &nbsp; (${x.from_id} → ${x.to_id})`).join('<br>')||'No improving discrete substitution was found.'}else{box.classList.add('hidden')}$('#attackResults').classList.remove('hidden');drawLine($('#historyChart'),r.history.map(x=>x.objective));drawBars($('#layerChart'),r.layer_drift)}catch(e){err.textContent=e.message;err.classList.remove('hidden')}finally{setBusy(b,false,'Run adversarial search')}};
+$('#validateCleanBtn').onclick=async()=>{const b=$('#validateCleanBtn');if(!lastAttackResult||lastAttackResult.attack_mode!=='token_hotflip'){alert('Run a discrete MadHatter token attack first.');return}setBusy(b,true,'Validating…');try{const body={expected_model_id:lastAttackResult.model?.model_id||null,original_prompt:$('#prompt').value,adversarial_prompt:lastAttackResult.adversarial_prompt,adversarial_input_ids:lastAttackResult.input_ids_adversarial,top_k:8,max_new_tokens:48};const j=await cleanApi('/api/compare',{method:'POST',body:JSON.stringify(body)}),r=j.result;const rt=r.text_roundtrip_matches_exact;$('#cleanValidationMeta').innerHTML=`<b>${esc(r.model.model_id)}</b> · ${esc(r.model.device)} · no adapters<br>Decoded-text round trip: <b>${rt?'exact token match':'DIFFERENT tokenization'}</b> · text argmax flip: <b>${r.original_vs_text_argmax_changed?'YES':'no'}</b> · exact-ID argmax flip: <b>${r.original_vs_exact_argmax_changed?'YES':'no'}</b>`;$('#cleanOriginalGen').textContent=r.original.generated_text||'(no visible continuation)';$('#cleanAdvTextGen').textContent=r.adversarial_text.generated_text||'(no visible continuation)';$('#cleanAdvExactGen').textContent=r.adversarial_exact.generated_text||'(no visible continuation)';const a=r.original.next_argmax,b1=r.adversarial_text.next_argmax,b2=r.adversarial_exact.next_argmax;$('#cleanNextSummary').textContent=`original: ${JSON.stringify(a?.token)} [${a?.id}]\nadversarial text: ${JSON.stringify(b1?.token)} [${b1?.id}]\nadversarial exact IDs: ${JSON.stringify(b2?.token)} [${b2?.id}]`;$('#cleanValidation').classList.remove('hidden');$('#cleanValidation').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){const box=$('#attackError');box.textContent='Clean validator: '+e.message;box.classList.remove('hidden')}finally{setBusy(b,false,'Run example in clean Qwen :8001')}};
+function parseJsonl(t){return t.split(/\n+/).map(x=>x.trim()).filter(Boolean).map((line,i)=>{try{return JSON.parse(line)}catch(e){throw new Error(`JSONL line ${i+1}: ${e.message}`)}})}
+let pollTimer=null;
+$('#trainBtn').onclick=async()=>{const b=$('#trainBtn'),err=$('#trainError');err.classList.add('hidden');try{const examples=parseJsonl($('#dataset').value);const body={training_goal:$('#trainingGoal').value,attack_mode:$('#trainAttackMode').value,examples,epochs:+$('#epochs').value,learning_rate:+$('#lr').value,epsilon:+$('#trainEps').value,step_size:+$('#trainEps').value/4,attack_steps:+$('#trainSteps').value,norm:'linf',robust_lambda:+$('#robustLambda').value,lora_rank:+$('#rank').value,lora_alpha:+$('#rank').value*2,lora_dropout:.05,max_length:512,max_token_changes:+$('#trainTokenChanges').value,candidate_top_k:+$('#candidateTopK').value,editable_last_n:+$('#editableLastN').value,seed:7};const j=await api('/api/train',{method:'POST',body:JSON.stringify(body)});setBusy(b,true,'Training…');$('#trainLog').textContent='Queued…';pollJob(j.job_id,b)}catch(e){err.textContent=e.message;err.classList.remove('hidden')}};
+function pollJob(id,btn){clearInterval(pollTimer);const tick=async()=>{try{const j=await api('/api/train/'+id),x=j.job;$('#progressBar').style.width=(100*x.progress).toFixed(1)+'%';$('#trainState').textContent=`${x.status} · ${(100*x.progress).toFixed(1)}%${x.loss!=null?' · loss '+x.loss.toFixed(4):''}`;$('#trainLog').textContent=x.logs.join('\n')||'Waiting…';$('#trainLog').scrollTop=$('#trainLog').scrollHeight;if(x.status==='complete'||x.status==='failed'){clearInterval(pollTimer);setBusy(btn,false,'Start adversarial LoRA training');if(x.status==='failed'){const e=$('#trainError');e.textContent=x.error;e.classList.remove('hidden')}await refresh()}}catch(e){clearInterval(pollTimer);setBusy(btn,false,'Start adversarial LoRA training');const box=$('#trainError');box.textContent=e.message;box.classList.remove('hidden')}};tick();pollTimer=setInterval(tick,1200)}
+window.addEventListener('resize',()=>{}); refresh();
+</script>
+</body>
+</html>

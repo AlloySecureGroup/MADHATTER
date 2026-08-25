@@ -1,0 +1,34 @@
+services:
+  madhatter-lab:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_ID: ${MODEL_ID:-Qwen/Qwen3-0.6B}
+      HF_HOME: /data/hf-cache
+      ADAPTER_ROOT: /data/adapters
+      FORCE_CPU: "1"
+    volumes:
+      - qwen_hf_cache:/data/hf-cache
+      - ./adapters:/data/adapters
+      - ./models:/models:ro
+    shm_size: "2gb"
+    restart: unless-stopped
+
+  clean-qwen:
+    build: .
+    command: ["uvicorn", "app.clean_server:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+    ports:
+      - "8001:8001"
+    environment:
+      MODEL_ID: ${MODEL_ID:-Qwen/Qwen3-0.6B}
+      HF_HOME: /data/hf-cache
+      FORCE_CPU: "1"
+    volumes:
+      - qwen_hf_cache:/data/hf-cache
+      - ./models:/models:ro
+    shm_size: "2gb"
+    restart: unless-stopped
+
+volumes:
+  qwen_hf_cache:

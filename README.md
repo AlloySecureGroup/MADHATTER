@@ -1,8 +1,7 @@
 # MADHATTER
 Gradient-Guided Token Perturbation for Qwen
 
-
-Friends and Family only 
+For other models and more advanced capabilites, lets chat.
 
 https://alloysecuregroup.com/
 

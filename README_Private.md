@@ -12,4 +12,4 @@ Get in touch for examples, and use cases.
 
 A galvaniclab.ai production.
 
-<img width="1122" height="1402" alt="image" src="https://github.com/user-attachments/assets/56c9bee9-e92b-47b8-80f0-462274dc0c7c" />
+<img width="1122" height="1402" alt="image" src="https://github.com/user-attachments/assets/ed41a797-ac4e-406d-821a-3305d1321234" />

@@ -1,0 +1,3 @@
+{"prompt":"Explain gradient descent in one paragraph.","response":"Gradient descent is an optimization method that repeatedly adjusts parameters in the direction that most reduces a differentiable loss function."}
+{"prompt":"What is the difference between precision and recall?","response":"Precision asks how many predicted positives were actually positive, while recall asks how many actual positives were successfully found."}
+{"prompt":"Give a concise explanation of overfitting.","response":"Overfitting occurs when a model learns training-specific details so strongly that its performance fails to generalize to new data."}

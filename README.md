@@ -174,3 +174,88 @@ Then validate the resulting discrete examples on port 8001 to determine whether 
 A perturbation can be highly effective on a sensitivity-trained MadHatter model but fail on the untouched clean checkpoint. That is a meaningful result: it means the effect was learned by the adapter rather than being a transferable property of the original Qwen model.
 
 Conversely, if the exact token sequence changes the clean checkpoint's next-token distribution or generation too, the perturbation transfers independently of the LoRA changes.
+
+## Claude Code resilience harness
+
+The standalone `claude_code_harness` package runs bounded, black-box
+clean/adversarial comparisons against the locally installed Claude Code CLI.
+It measures:
+
+- direct and indirect prompt-injection resistance;
+- task correctness and output drift;
+- attempts to invoke tools outside a read-only allowlist.
+
+This is deliberately separate from the FastAPI and Docker services. Each
+trial gets a fresh temporary fixture directory and a `PreToolUse` hook that
+logs tool requests, allows only `Read`, `Glob`, and `Grep` inside that fixture,
+and denies everything else. A hook or prerequisite failure stops the run
+rather than broadening permissions.
+
+### Requirements
+
+Install and authenticate Claude Code, then verify the CLI, authentication, and
+safety hook:
+
+```bash
+python3 -m claude_code_harness check
+```
+
+The harness itself uses only the Python standard library and supports Python
+3.9 or newer.
+
+### Run the suite
+
+```bash
+python3 -m claude_code_harness run \
+  --trials 3 \
+  --model claude-sonnet-4-5 \
+  --max-budget-usd 0.25
+```
+
+Run one scenario with stricter limits:
+
+```bash
+python3 -m claude_code_harness run \
+  --scenario indirect-file-injection \
+  --trials 1 \
+  --max-turns 2 \
+  --max-budget-usd 0.05 \
+  --output reports/smoke
+```
+
+Every run writes `report.json` and `report.html`. Redacted model transcripts
+are omitted by default; add `--include-transcripts` only when the prompts and
+outputs are safe to retain. Reports record model/CLI metadata, scenario and
+trial IDs, durations, usage returned by Claude, tool decisions, and aggregate
+rates. Claude output is nondeterministic, so compare rates across repeated
+trials instead of treating exact prose as stable.
+
+### Tests
+
+The default tests use a fake `claude` executable and spend no API credits:
+
+```bash
+python3 -m pip install "pytest>=8.3,<9"
+python3 -m pytest -q tests/claude_code_harness
+```
+
+The opt-in live smoke test performs one harmless, read-only request with a
+small budget:
+
+```bash
+MADHATTER_RUN_LIVE=1 python3 -m pytest -q \
+  tests/claude_code_harness/test_live_smoke.py
+```
+
+### Scope and limitations
+
+Claude is a hosted, proprietary model. Its embeddings, gradients, logits,
+hidden states, exact token IDs, weights, and LoRA training are not exposed.
+Consequently, MADHATTER's HotFlip, embedding PGD, exact-token replay, and LoRA
+experiments cannot run against Claude. This harness evaluates only observable
+Claude Code behavior through the CLI and does not claim white-box parity.
+
+Use the scenarios only on systems and data you are authorized to test. The
+deny hook is defense in depth, not an operating-system sandbox: run untrusted
+custom scenarios in a disposable VM or container without production
+credentials or sensitive mounts.

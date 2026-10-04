@@ -36,10 +36,18 @@ def test_ui_loads_both_services_when_model_selection_changes():
     assert "api('/api/load'" in html
     assert "cleanApi('/api/load'" in html
     assert "Promise.allSettled([attack,validator])" in html
-    assert "Attack service :8000 · loading" in html
-    assert "Clean validator :8001 · loading" in html
-    assert "Attack service :8000 · load failed" in html
-    assert "Clean validator :8001 · load failed" in html
+    assert ">Load model</button>" in html
+    assert "Loading model…" in html
+    assert "Load both" not in html
+    assert "Loading both" not in html
+    assert "Loading ${modelId}…" in html
+    assert "${m.model_id} loaded · ${m.device}" in html
+    assert "Failed to load ${modelId}" in html
+    assert "Loading model for attack service :8000" in html
+    assert "Loading model for clean validator :8001" in html
+    assert "Model load failed for attack service :8000" in html
+    assert "Model load failed for clean validator :8001" in html
+    assert "Model load did not complete:" in html
     assert '@app.post("/api/load")' in clean
     assert "is_curated_model(req.model_id)" in clean
 

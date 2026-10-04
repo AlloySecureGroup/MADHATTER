@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from .model_registry import DEFAULT_MODEL_ID
+
 
 class EvaluateRequest(BaseModel):
     mode: Literal["text", "token_ids"] = "text"
@@ -64,7 +66,7 @@ class CleanModelRunner:
         with self.lock:
             if self.model is not None:
                 return
-            model_id = os.getenv("MODEL_ID", "Qwen/Qwen3-0.6B")
+            model_id = os.getenv("MODEL_ID", DEFAULT_MODEL_ID)
             device = torch.device("cpu") if self.force_cpu or not torch.cuda.is_available() else torch.device("cuda")
             dtype = torch.float32 if device.type == "cpu" else torch.bfloat16
             tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=False)

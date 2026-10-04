@@ -16,6 +16,7 @@ from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from torch.optim import AdamW
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from .model_registry import DEFAULT_MODEL_ID, model_metadata
 from .token_filter import latin_replacement_token_ids
 
 
@@ -59,6 +60,7 @@ class AdversarialModelEngine:
             "has_lora": self.state.has_lora,
             "cuda_available": torch.cuda.is_available(),
             "gpu_name": gpu_name,
+            "registry": model_metadata(self.state.model_id),
         }
 
     def unload(self) -> None:
@@ -100,7 +102,7 @@ class AdversarialModelEngine:
 
     def ensure_loaded(self) -> None:
         if not self.loaded:
-            self.load_model(os.getenv("MODEL_ID", "Qwen/Qwen3-0.6B"))
+            self.load_model(os.getenv("MODEL_ID", DEFAULT_MODEL_ID))
 
     def _chat_prompt(self, prompt: str) -> str:
         tok = self.state.tokenizer

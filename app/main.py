@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from .engine import AdversarialModelEngine
+from .model_registry import model_options
 from .schemas import AttackRequest, LoadRequest, TrainRequest
 
 app = FastAPI(title="MadHatter Open-Weight Resilience Lab", version="2.0.0")
@@ -49,6 +50,11 @@ def training_worker(job_id: str, data: dict[str, Any]) -> None:
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/api/models")
+def models() -> dict[str, Any]:
+    return {"ok": True, "models": model_options()}
 
 
 @app.get("/api/health")

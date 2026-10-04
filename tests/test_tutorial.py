@@ -8,5 +8,8 @@ def test_readme_links_to_illustrated_tutorial():
     assert "(docs/TUTORIAL.md)" in readme
     assert "images/discrete-attack.png" in tutorial
     assert "images/clean-validation.png" in tutorial
+    assert "### Contract delta" in tutorial
+    assert "conference information" in tutorial
+    assert "was not signed" in tutorial
     assert Path("docs/images/discrete-attack.png").is_file()
     assert Path("docs/images/clean-validation.png").is_file()

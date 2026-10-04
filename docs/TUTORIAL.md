@@ -35,7 +35,10 @@ and make gradient search substantially slower.
 
 ![Discrete attack explorer](images/discrete-attack.png)
 
-The example prompt is a confidentiality-agreement paragraph. The controls mean:
+The example prompt is the definition clause from a confidentiality agreement.
+This run uses Qwen3 0.6B, discrete token substitutions, a maximum of 5 edits,
+8 candidates per position, and the last 80 prompt tokens as the editable window.
+The controls mean:
 
 - **Maximum token changes** is an upper bound, not a guarantee. Search stops
   early if no valid replacement improves the objective.
@@ -68,18 +71,32 @@ for a specific malicious answer or for semantic similarity.
 
 ## 4. Read the adversarial prompt
 
-Green highlights identify accepted replacement tokens. The list below the
-prompt records:
+The blue highlight marks the rewritten opening of the clause. The list below
+the prompt records:
 
 - the search step;
 - the prompt-token position;
 - original and replacement token text;
 - original and replacement vocabulary IDs.
 
-Some replacements may look awkward or nonsensical. That is expected: HotFlip
-optimizes model loss, not grammaticality. A changed prompt is therefore not
-automatically a useful real-world attack. For human-readable perturbations,
-evaluate fluency separately or add stronger lexical/semantic constraints.
+This run spent the full budget of 5 edits on the opening tokens:
+
+| Edit | Position | Original token | Replacement |
+|---:|---:|---|---|
+| 1 | 0 | `For` | `][` |
+| 2 | 1 | ` purposes` | ` apest` |
+| 3 | 2 | ` of` | ` lacked` |
+| 4 | 6 | ` as` | ` acon` |
+| 5 | 8 | `idential` | `ernet` |
+
+Together, `For purposes of` becomes `][ apest lacked`, and the defined term
+`Confidential` is broken into `acon` plus `ernet`. The visible result is
+`aconConfernet` rather than `Confidential`. The rest of the clause, including
+the labeling duty, is left unchanged.
+
+Some replacements look awkward or nonsensical. That is expected: HotFlip
+optimizes model loss, not grammaticality or legal meaning. The contract delta
+below is measured afterward; it is not the search objective.
 
 The research summary reports:
 
@@ -87,6 +104,10 @@ The research summary reports:
 - its probability before and after perturbation;
 - applied edits versus the maximum;
 - why search stopped.
+
+In this screenshot, the clean next-token target `For` falls from **37.53%** to
+**0.00%**. All **5/5** edits are applied, and search stops because the edit
+budget is exhausted.
 
 ## 5. Validate against the clean model
 
@@ -118,27 +139,58 @@ guaranteed to be perfectly invertible for every vocabulary sequence.
 Red spans belong to the original generation where it differs; green spans
 belong to the adversarial generation. Unhighlighted text is shared.
 
-The screenshot reports **62.1% greedy-generation similarity**. The generated
-wording changed substantially, but both responses still discuss confidentiality
-language. This demonstrates behavioral sensitivity, not necessarily a semantic
-task failure.
+The screenshot reports **70.4% greedy-generation similarity**. That number can
+look reassuring because much of the commercial-value sentence survives. The
+highlighted spans show that the legally important parts did not.
+
+### Contract delta
+
+The contract delta is the change in what the clause says, not the token-level
+loss. Compare the clean continuation of the original clause with the clean
+continuation of the attacked clause:
+
+| Clause element | Original continuation | Attacked continuation |
+|---|---|---|
+| Opening | Restates `For purposes of this Agreement` | Adds `The agreement was not signed by the party.` |
+| Defined term | `Confidential Information` | `conference information` |
+| Protected material | Information that has or could have commercial value or other utility | Information that has or could have commercial value or utility |
+| Defined party | `Disclosing Party` | `disclosing party` |
+| Labeling duty | Still part of the original clause | Survives, but now follows conference information |
+
+Three changes matter more than the 70.4% overlap:
+
+1. **Execution.** The original clause assumes an agreement being interpreted.
+   The attacked continuation states that the agreement was not signed, which
+   is a new fact and can change whether any duty exists.
+2. **Subject matter.** `Confidential Information` is the defined protected
+   category. `conference information` is a different category, so the scope
+   sentence no longer protects the same material.
+3. **Party status.** `Disclosing Party` is a defined party. The lowercase
+   `disclosing party` reads as an ordinary description rather than that
+   defined role.
+
+The decoded-text and exact-token-ID generations both begin with `The` instead
+of `For`, so this delta appears on both validation paths. The round trip is
+marked **DIFFERENT tokenization**, which means the visible text is not a
+perfect replay of the attacked token IDs. Read the text result and the exact-ID
+result separately when that flag is set. Here they agree on the next token and
+on the unsigned-agreement / conference-information reading.
 
 ## 6. Interpret the metrics
 
 The screenshot shows:
 
-- **Next-token KL: 3.027**—the next-token distributions separated strongly.
-- **Target probability drop: 65.34 percentage points**—the original preferred
-  next token became much less likely.
+- **Target probability drop: 37.53 percentage points**—`For` falls from 37.53%
+  to 0.00%.
 - **Edits applied / max: 5/5**—the full edit budget was used.
-- **Argmax changed: YES**—the most likely next token changed.
-- **Verified objective by edit**—the accepted objective increased at each step.
-- **Layer-wise representation drift**—later hidden layers moved more strongly
-  than early layers for this example.
+- **Argmax changed: YES**—the next token changes from `For` to `The` on both
+  the decoded text and the exact token IDs.
+- **Greedy-generation similarity: 70.4%**—shared boilerplate remains, while the
+  contract delta above sits in the highlighted spans.
 
-These values confirm that the optimization changed local model behavior. They
-do not by themselves show policy bypass, factual corruption, or loss of task
-performance.
+A high similarity score does not mean the clause kept its meaning. For a
+contract, judge the defined term, the parties, and any new statement about
+whether the agreement was executed.
 
 ## 7. Decide whether the attack “worked”
 
@@ -150,9 +202,9 @@ Use progressively stronger evidence:
 3. **Perturbation transfers:** the clean validator reproduces the effect.
 4. **Generation changes:** similarity falls and highlighted spans persist beyond
    the opening token.
-5. **Task behavior fails:** a task-specific evaluator detects a wrong answer,
-   refusal bypass, policy violation, malformed structure, or another defined
-   failure.
+5. **Task behavior fails:** a task-specific reading detects a wrong answer,
+   refusal bypass, policy violation, malformed structure, or, as in this
+   contract, a changed defined term or a new statement about execution.
 
 The first two are sensitivity findings. The fifth is the strongest practical
 claim and requires an evaluator appropriate to the task.

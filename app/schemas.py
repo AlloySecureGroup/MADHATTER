@@ -1,9 +1,11 @@
 from typing import Literal
 from pydantic import BaseModel, Field
 
+from .model_registry import DEFAULT_MODEL_ID
+
 
 class LoadRequest(BaseModel):
-    model_id: str = Field(default="Qwen/Qwen3-0.6B", min_length=1)
+    model_id: str = Field(default=DEFAULT_MODEL_ID, min_length=1)
 
 
 class AttackRequest(BaseModel):

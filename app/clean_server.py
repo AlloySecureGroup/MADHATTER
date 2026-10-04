@@ -35,7 +35,7 @@ class CompareRequest(BaseModel):
     max_new_tokens: int = Field(default=48, ge=1, le=256)
 
 
-class CleanQwen:
+class CleanModelRunner:
     def __init__(self) -> None:
         self.model = None
         self.tokenizer = None
@@ -175,8 +175,8 @@ class CleanQwen:
             }
 
 
-clean = CleanQwen()
-app = FastAPI(title="MadHatter Clean Qwen Validator", version="1.0.0")
+clean = CleanModelRunner()
+app = FastAPI(title="MadHatter Clean Model Validator", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -189,9 +189,9 @@ app.add_middleware(
 @app.get("/")
 def root() -> dict[str, Any]:
     return {
-        "service": "MadHatter clean Qwen validator",
+        "service": "MadHatter clean model validator",
         "port": 8001,
-        "purpose": "Run generated token perturbations against an independent base Qwen instance.",
+        "purpose": "Run generated token perturbations against an independent base model instance.",
         "model": clean.info(),
     }
 

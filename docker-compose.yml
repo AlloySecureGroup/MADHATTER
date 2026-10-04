@@ -8,14 +8,14 @@ services:
       HF_HOME: /data/hf-cache
       ADAPTER_ROOT: /data/adapters
     volumes:
-      - qwen_hf_cache:/data/hf-cache
+      - model_hf_cache:/data/hf-cache
       - ./adapters:/data/adapters
       - ./models:/models:ro
     gpus: all
     shm_size: "2gb"
     restart: unless-stopped
 
-  clean-qwen:
+  clean-model:
     build: .
     command: ["uvicorn", "app.clean_server:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
     ports:
@@ -24,11 +24,11 @@ services:
       MODEL_ID: ${MODEL_ID:-Qwen/Qwen3-0.6B}
       HF_HOME: /data/hf-cache
     volumes:
-      - qwen_hf_cache:/data/hf-cache
+      - model_hf_cache:/data/hf-cache
       - ./models:/models:ro
     gpus: all
     shm_size: "2gb"
     restart: unless-stopped
 
 volumes:
-  qwen_hf_cache:
+  model_hf_cache:

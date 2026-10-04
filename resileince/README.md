@@ -11,7 +11,7 @@ The project exposes two independent services:
 
 ## Curated model options
 
-The UI contains eight compact Apache-2.0 open-weight checkpoints that load through `transformers.AutoModelForCausalLM`:
+The UI contains nine compact Apache-2.0 open-weight checkpoints that load through `transformers.AutoModelForCausalLM`:
 
 | Model | Approx. parameters | Family | Suggested use |
 |---|---:|---|---|
@@ -23,8 +23,15 @@ The UI contains eight compact Apache-2.0 open-weight checkpoints that load throu
 | `Qwen/Qwen3-1.7B` | 1.7B | Qwen3 | Larger Qwen3 target |
 | `HuggingFaceTB/SmolLM2-1.7B-Instruct` | 1.7B | SmolLM2 | Cross-family transfer |
 | `ibm-granite/granite-3.3-2b-instruct` | 2.0B | Granite | Architecture-diverse target |
+| `HuggingFaceTB/SmolLM3-3B` | 3.0B | SmolLM3 | Stronger practical comparison |
 
 Model metadata lives in `app/model_registry.py`, so the curated set is easy to change without rewriting the UI.
+
+HotFlip replacement candidates are limited to Unicode Latin letters, ASCII
+digits, ASCII punctuation, and whitespace. Tokens containing CJK, Hangul,
+Kana, Cyrillic, Arabic, emoji, controls, or undecodable byte fragments are
+excluded before candidate ranking. This keeps decoded perturbations readable
+in Latin-script experiments while preserving accented Latin letters.
 
 ## What the resilience matrix measures
 

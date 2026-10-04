@@ -16,6 +16,8 @@ from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from torch.optim import AdamW
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from .token_filter import latin_replacement_token_ids
+
 
 @dataclass
 class ModelState:
@@ -25,9 +27,10 @@ class ModelState:
     device: str = "cpu"
     dtype: str = "float32"
     has_lora: bool = False
+    replacement_mask: Any | None = None
 
 
-class QwenAdversarialEngine:
+class AdversarialModelEngine:
     def __init__(self) -> None:
         self.state = ModelState()
         self.lock = threading.RLock()
@@ -225,6 +228,25 @@ class QwenAdversarialEngine:
         approx = torch.matmul(g, weight.t())
         current_emb = weight[current_ids[0, pos_t]]
         approx = approx - (g * current_emb).sum(dim=-1, keepdim=True)
+        replacement_mask = self.state.replacement_mask
+        if (
+            replacement_mask is None
+            or replacement_mask.shape[0] != approx.shape[1]
+            or replacement_mask.device != approx.device
+        ):
+            allowed_ids = latin_replacement_token_ids(
+                self.state.tokenizer, approx.shape[1]
+            )
+            if not allowed_ids:
+                raise RuntimeError("Tokenizer has no Latin replacement candidates")
+            replacement_mask = torch.zeros(
+                approx.shape[1], dtype=torch.bool, device=approx.device
+            )
+            replacement_mask[
+                torch.tensor(allowed_ids, dtype=torch.long, device=approx.device)
+            ] = True
+            self.state.replacement_mask = replacement_mask
+        approx.masked_fill_(~replacement_mask.unsqueeze(0), -torch.inf)
         special_ids = [i for i in (self.state.tokenizer.all_special_ids or []) if 0 <= i < approx.shape[1]]
         if special_ids:
             approx[:, torch.tensor(special_ids, device=approx.device)] = -torch.inf

@@ -30,7 +30,7 @@ class ModelState:
     replacement_mask: Any | None = None
 
 
-class QwenAdversarialEngine:
+class AdversarialModelEngine:
     def __init__(self) -> None:
         self.state = ModelState()
         self.lock = threading.RLock()

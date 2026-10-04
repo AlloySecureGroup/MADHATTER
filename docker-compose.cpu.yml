@@ -9,13 +9,13 @@ services:
       ADAPTER_ROOT: /data/adapters
       FORCE_CPU: "1"
     volumes:
-      - qwen_hf_cache:/data/hf-cache
+      - model_hf_cache:/data/hf-cache
       - ./adapters:/data/adapters
       - ./models:/models:ro
     shm_size: "2gb"
     restart: unless-stopped
 
-  clean-qwen:
+  clean-model:
     build: .
     command: ["uvicorn", "app.clean_server:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
     ports:
@@ -25,10 +25,10 @@ services:
       HF_HOME: /data/hf-cache
       FORCE_CPU: "1"
     volumes:
-      - qwen_hf_cache:/data/hf-cache
+      - model_hf_cache:/data/hf-cache
       - ./models:/models:ro
     shm_size: "2gb"
     restart: unless-stopped
 
 volumes:
-  qwen_hf_cache:
+  model_hf_cache:

@@ -8,11 +8,11 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from .engine import QwenAdversarialEngine
+from .engine import AdversarialModelEngine
 from .schemas import AttackRequest, LoadRequest, TrainRequest
 
-app = FastAPI(title="MadHatter Qwen Lab", version="2.0.0")
-engine = QwenAdversarialEngine()
+app = FastAPI(title="MadHatter Open-Weight Resilience Lab", version="2.0.0")
+engine = AdversarialModelEngine()
 STATIC = Path(__file__).parent / "static"
 
 jobs: dict[str, dict[str, Any]] = {}

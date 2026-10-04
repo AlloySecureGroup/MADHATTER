@@ -1,29 +1,34 @@
-# MadHatter — Qwen Token Perturbation Lab
+# MadHatter — Adversarial Model Resilience Lab
 
-MadHatter is a local Qwen research demo for gradient-guided **discrete token perturbations**, embedding-space PGD, and LoRA post-training. It now includes a second, independent **clean Qwen validator** so a perturbation found in the lab can be tested against an unmodified base checkpoint.
+MadHatter is a local research platform for probing and strengthening language
+model resilience. It combines gradient-guided **discrete token
+perturbations**, embedding-space PGD, LoRA post-training, clean-checkpoint
+validation, cross-model transfer experiments, and black-box Claude Code
+testing. Qwen remains the lightweight default, but the project supports a
+curated set of open-weight causal models through the multi-model lab.
 
 ## Services
 
 | Service | Port | Purpose |
 |---|---:|---|
 | `madhatter-lab` | `8000` | Find perturbations, inspect token/logit drift, and optionally post-train LoRA |
-| `clean-qwen` | `8001` | Independent base Qwen instance; no adapters; validates portability of MadHatter examples |
+| `clean-model` | `8001` | Independent base-model instance; no adapters; validates portability of MadHatter examples |
 
-Both services use the same `MODEL_ID` environment variable and share only the Hugging Face model cache. They are separate processes with separately loaded model objects. The clean service never loads the adapter directory.
+Both services use the same `MODEL_ID` environment variable and share only the Hugging Face model cache. They are separate processes with separately loaded model objects. The clean service never loads the adapter directory. For curated cross-family sweeps, model metadata, and the resilience matrix, use [`resileince/`](resileince/).
 
-The clean model loads lazily when you first validate an example, so starting Compose does not immediately allocate memory for two Qwen copies.
+The clean model loads lazily when you first validate an example, so starting Compose does not immediately allocate memory for two model copies.
 
 ## Why the clean validator matters
 
 For a discrete MadHatter attack the lab returns:
 
 - `adversarial_prompt` — decoded human-readable adversarial prompt
-- `input_ids_adversarial` — exact Qwen token IDs used by the attack
+- `input_ids_adversarial` — exact source-model token IDs used by the attack
 - `token_changes` — original and replacement token IDs/text
 
 The validator checks the result in two ways:
 
-1. **Text portability:** send `adversarial_prompt` to clean Qwen and let its tokenizer encode it normally.
+1. **Text portability:** send `adversarial_prompt` to the clean model and let its tokenizer encode it normally.
 2. **Exact token portability:** send `input_ids_adversarial` directly to the clean model.
 
 The UI reports whether decoding and re-tokenizing the adversarial prompt reconstructs the exact adversarial token sequence. This is important because a tokenizer decode → encode round trip is not guaranteed to preserve every possible token sequence.
@@ -51,7 +56,7 @@ MODEL_ID=Qwen/Qwen3-1.7B docker compose up --build
 For a local Transformers checkpoint:
 
 ```bash
-MODEL_ID=/models/my-qwen docker compose up --build
+MODEL_ID=/models/my-model docker compose up --build
 ```
 
 Keep both services on the **same checkpoint/tokenizer** for an exact token-ID portability test. The clean API rejects a comparison when the lab-reported model ID and clean validator model ID do not match.
@@ -75,11 +80,11 @@ Clean validator API:
 http://localhost:8001
 ```
 
-The UI on port 8000 has a **Run example in clean Qwen :8001** button after a discrete token attack succeeds.
+The UI on port 8000 has a **Run example in clean model :8001** button after a discrete token attack succeeds.
 
 ### GPU memory note
 
-Once the clean validator is used, two independent Qwen model copies are resident: one in the MadHatter container and one in the clean container. With larger checkpoints this can exceed VRAM. In that case use a smaller checkpoint, CPU validator, or run the clean service separately after stopping training.
+Once the clean validator is used, two independent model copies are resident: one in the MadHatter container and one in the clean container. With larger checkpoints this can exceed VRAM. In that case use a smaller checkpoint, CPU validator, or run the clean service separately after stopping training.
 
 ## CPU / WSL fallback
 
@@ -149,7 +154,7 @@ Token mode performs a HotFlip-style white-box search. For an editable token posi
 score(i, j) ≈ grad(E_i) · (E_j - E_i)
 ```
 
-then verifies the strongest candidates using actual `input_ids`. The result therefore becomes a real discrete Qwen token sequence rather than only a hidden continuous embedding tensor.
+then verifies the strongest candidates using actual `input_ids`. The result therefore becomes a real discrete source-model token sequence rather than only a hidden continuous embedding tensor.
 
 Replacement candidates are restricted to Unicode Latin letters, ASCII digits,
 ASCII punctuation, and common whitespace. Tokens containing CJK, Hangul,
@@ -172,11 +177,11 @@ For experiments where you want real token substitutions to have stronger effects
 }
 ```
 
-Then validate the resulting discrete examples on port 8001 to determine whether the perturbation transfers to an unmodified Qwen checkpoint.
+Then validate the resulting discrete examples on port 8001 to determine whether the perturbation transfers to an unmodified checkpoint.
 
 ## Important interpretation
 
-A perturbation can be highly effective on a sensitivity-trained MadHatter model but fail on the untouched clean checkpoint. That is a meaningful result: it means the effect was learned by the adapter rather than being a transferable property of the original Qwen model.
+A perturbation can be highly effective on a sensitivity-trained MadHatter model but fail on the untouched clean checkpoint. That is a meaningful result: it means the effect was learned by the adapter rather than being a transferable property of the original base model.
 
 Conversely, if the exact token sequence changes the clean checkpoint's next-token distribution or generation too, the perturbation transfers independently of the LoRA changes.
 

@@ -1,7 +1,11 @@
 # MADHATTER
-Gradient-Guided Token Perturbation for Qwen
+Adversarial Resilience Research for Language Models
 
-For other models and more advanced capabilites, lets chat.
+Explore gradient-guided token perturbation, embedding attacks, cross-model
+transfer, resilience training, and agent behavior across open-weight and
+hosted model systems.
+
+For advanced capabilities and research partnerships, let's chat.
 
 https://alloysecuregroup.com/
 

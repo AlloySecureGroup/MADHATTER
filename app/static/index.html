@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>MadHatter · Qwen Token Perturbation Lab</title>
+<title>MadHatter · Open-Weight Adversarial Resilience Lab</title>
 <style>
 :root{--bg:#091018;--panel:#101a25;--panel2:#0d1620;--line:#203044;--text:#e9f0f7;--muted:#91a2b6;--accent:#7ee787;--accent2:#62a8ff;--warn:#ffcc66;--danger:#ff7b72;--shadow:0 20px 60px rgba(0,0,0,.28)}
 *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 15% -10%,#172a3f 0,transparent 34%),var(--bg);color:var(--text);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} button,input,select,textarea{font:inherit}
@@ -15,7 +15,7 @@
 <body>
 <div class="shell">
   <div class="topbar">
-    <div class="brand"><div class="logo">∇↑</div><div><h1>MadHatter</h1><div class="subtitle">Gradient-guided Qwen token perturbation + clean-instance validation</div></div></div>
+    <div class="brand"><div class="logo">∇↑</div><div><h1>MadHatter</h1><div class="subtitle">Open-weight adversarial perturbation + resilience validation</div></div></div>
     <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Checking backend…</span></div>
   </div>
 
@@ -29,7 +29,7 @@
       <div class="mini">1. Embedding mode ascends loss in continuous prompt space.</div>
       <div class="mini" style="margin-top:7px">2. Token mode uses gradients to select actual vocabulary substitutions.</div>
       <div class="mini" style="margin-top:7px">3. LoRA can train against either worst-case input representation.</div>
-      <div class="notice warn">MadHatter token mode returns real token IDs and a decoded adversarial prompt that can be fed through an independent Qwen instance.</div>
+      <div class="notice warn">MadHatter token mode returns real token IDs and a decoded adversarial prompt that can be tested against an independent model instance.</div>
       <div style="height:16px"></div>
       <span class="label">Clean validator</span>
       <div class="field"><input id="cleanUrl" placeholder="http://localhost:8001" /></div>
@@ -41,7 +41,7 @@
       <div class="tabs"><button class="tab active" data-pane="attack">Attack explorer</button><button class="tab" data-pane="train">Adversarial train</button><button class="tab" data-pane="about">Method</button></div>
 
       <section id="attack" class="pane active section">
-        <div class="hero"><div><h2>Find the highest-loss local direction</h2><p>Search a constrained neighborhood around a prompt’s embeddings and measure how sharply Qwen’s next-token distribution and hidden state move.</p></div><span class="pill">gradient ascent on input</span></div>
+        <div class="hero"><div><h2>Find the highest-loss local direction</h2><p>Search a constrained neighborhood around a prompt’s embeddings and measure how sharply the model’s next-token distribution and hidden state move.</p></div><span class="pill">gradient ascent on input</span></div>
         <div class="formula">δ* = arg max<sub>||δ||≤ε</sub> D(f(E(x)), f(E(x)+δ))</div>
         <div class="field" style="margin-top:16px"><span class="label">Prompt</span><textarea id="prompt">Explain why the sky appears blue in two sentences.</textarea></div>
         <div class="controls" style="grid-template-columns:repeat(4,1fr)">
@@ -62,10 +62,10 @@
             <h3>MadHatter discrete adversarial prompt</h3>
             <div id="advPrompt" class="token" style="white-space:pre-wrap"></div>
             <div id="tokenChangesList" class="mini" style="margin-top:10px"></div>
-            <div class="buttonrow" style="margin-top:12px"><button id="validateCleanBtn" class="primary">Run example in clean Qwen :8001</button></div>
+            <div class="buttonrow" style="margin-top:12px"><button id="validateCleanBtn" class="primary">Run example in clean model :8001</button></div>
           </div>
           <div id="cleanValidation" class="resultbox hidden" style="margin-top:14px">
-            <h3>Independent clean-Qwen validation</h3>
+            <h3>Independent clean-model validation</h3>
             <div id="cleanValidationMeta" class="notice"></div>
             <div class="results">
               <div><span class="label">Original prompt generation</span><div id="cleanOriginalGen" class="token"></div></div>
@@ -90,7 +90,7 @@
       </section>
 
       <section id="train" class="pane section">
-        <div class="hero"><div><h2>LoRA perturbation post-training</h2><p>Choose sensitivity training to preserve clean answers while making bounded perturbations change Qwen’s response-token distribution, or robustness training to suppress those changes.</p></div><span class="pill">selectable outer objective</span></div>
+        <div class="hero"><div><h2>LoRA perturbation post-training</h2><p>Choose sensitivity training to preserve clean answers while making bounded perturbations change the model’s response-token distribution, or robustness training to suppress those changes.</p></div><span class="pill">selectable outer objective</span></div>
         <div class="trainlayout">
           <div>
             <div class="field"><span class="label">Training examples · JSONL</span><textarea id="dataset" style="min-height:305px">{"prompt":"Explain gradient descent in one paragraph.","response":"Gradient descent is an optimization method that repeatedly adjusts parameters in the direction that most reduces a differentiable loss function."}
@@ -122,7 +122,7 @@
         <div class="hero"><div><h2>Method</h2><p>The lab supports both a continuous embedding adversary and a discrete vocabulary adversary. LoRA remains the trainable model variable.</p></div></div>
         <div class="formula">inner: perturbation ← arg max local loss &nbsp;&nbsp; | &nbsp;&nbsp; sensitive outer: min θ [CE<sub>clean</sub> − λ JS(clean, perturbed)] &nbsp;&nbsp; | &nbsp;&nbsp; robust outer: min θ [CE<sub>adv</sub> + λ KL(clean || adv)]</div>
         <div class="aboutgrid">
-          <div><h3>Two inner loops</h3><p>Embedding PGD projects δ into a norm budget. Discrete mode uses a HotFlip-style first-order score and verifies real token substitutions against Qwen.</p></div>
+          <div><h3>Two inner loops</h3><p>Embedding PGD projects δ into a norm budget. Discrete mode uses a HotFlip-style first-order score and verifies real token substitutions against the loaded model.</p></div>
           <div><h3>Prompt-only perturbation</h3><p>Only user-prompt positions are editable. Chat-control tokens and supervised response tokens remain untouched.</p></div>
           <div><h3>LoRA outer loop</h3><p>Robust mode minimizes adversarial loss. Sensitivity mode minimizes clean CE while maximizing bounded clean-vs-perturbed JS divergence, so output token probabilities separate without globally ascending the model loss.</p></div>
         </div>
@@ -139,7 +139,7 @@ const defaultCleanUrl=()=>`${location.protocol}//${location.hostname}:8001`;
 $('#cleanUrl').value=defaultCleanUrl();
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 async function api(path, opts={}){const r=await fetch(path,{headers:{'Content-Type':'application/json'},...opts}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.detail||`HTTP ${r.status}`); return j}
-async function cleanApi(path, opts={}){const base=$('#cleanUrl').value.trim().replace(/\/$/,'')||defaultCleanUrl();const r=await fetch(base+path,{headers:{'Content-Type':'application/json'},...opts});const j=await r.json().catch(()=>({}));if(!r.ok) throw new Error(j.detail||`Clean Qwen HTTP ${r.status}`);return j}
+async function cleanApi(path, opts={}){const base=$('#cleanUrl').value.trim().replace(/\/$/,'')||defaultCleanUrl();const r=await fetch(base+path,{headers:{'Content-Type':'application/json'},...opts});const j=await r.json().catch(()=>({}));if(!r.ok) throw new Error(j.detail||`Clean model HTTP ${r.status}`);return j}
 function setBusy(btn,busy,label){if(busy){btn.dataset.old=btn.textContent;btn.innerHTML='<span class="spin"></span>'+label;btn.disabled=true}else{btn.textContent=btn.dataset.old||label;btn.disabled=false}}
 async function refresh(){try{const j=await api('/api/health');const m=j.model;$('#statusDot').className='dot '+(m.loaded?'ok':'');$('#statusText').textContent=m.loaded?`${m.model_id} · ${m.device}`:'Backend ready · model not loaded';$('#modelMeta').innerHTML=m.loaded?`<b>${esc(m.model_id)}</b><br><span class="mini">device: ${esc(m.device)} · dtype: ${esc(m.dtype)}${m.gpu_name?` · ${esc(m.gpu_name)}`:''}${m.has_lora?' · LoRA active':''}</span>`:'Model not loaded yet.'}catch(e){$('#statusText').textContent='Backend unavailable';$('#modelMeta').textContent=e.message}}
 $('#refreshBtn').onclick=refresh;

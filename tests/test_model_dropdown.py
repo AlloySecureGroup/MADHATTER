@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from app.model_registry import DEFAULT_MODEL_ID, MODEL_OPTIONS, is_curated_model
+from app.model_registry import (
+    DEFAULT_MODEL_ID,
+    MODEL_OPTIONS,
+    enabled_model_ids,
+    is_curated_model,
+    model_options,
+)
 
 
 def test_curated_model_registry_is_unique_and_has_default():
@@ -11,6 +17,51 @@ def test_curated_model_registry_is_unique_and_has_default():
     assert "HuggingFaceTB/SmolLM3-3B" in ids
     assert is_curated_model(DEFAULT_MODEL_ID)
     assert not is_curated_model("/models/operator-checkpoint")
+    enabled = [model["id"] for model in model_options()]
+    assert enabled == [
+        "HuggingFaceTB/SmolLM2-360M-Instruct",
+        "Qwen/Qwen2.5-0.5B-Instruct",
+        DEFAULT_MODEL_ID,
+    ]
+    assert "HuggingFaceTB/SmolLM3-3B" not in enabled
+
+
+def test_models_file_keeps_order_and_skips_comments(tmp_path, monkeypatch):
+    listing = tmp_path / "models.txt"
+    listing.write_text(
+        "\n".join(
+            [
+                "# hidden",
+                "Qwen/Qwen3-1.7B",
+                "not-a-model",
+                "",
+                "Qwen/Qwen3-1.7B",
+                "HuggingFaceTB/SmolLM2-360M-Instruct  # first small model",
+            ]
+        )
+    )
+    monkeypatch.setenv("MODELS_FILE", str(listing))
+
+    assert enabled_model_ids() == [
+        "Qwen/Qwen3-1.7B",
+        "not-a-model",
+        "HuggingFaceTB/SmolLM2-360M-Instruct",
+    ]
+    assert [model["id"] for model in model_options()] == [
+        "Qwen/Qwen3-1.7B",
+        "HuggingFaceTB/SmolLM2-360M-Instruct",
+    ]
+    assert is_curated_model("Qwen/Qwen3-1.7B")
+    assert not is_curated_model(DEFAULT_MODEL_ID)
+
+
+def test_empty_models_file_falls_back_to_default(tmp_path, monkeypatch):
+    listing = tmp_path / "models.txt"
+    listing.write_text("# nothing enabled\n\n")
+    monkeypatch.setenv("MODELS_FILE", str(listing))
+
+    assert [model["id"] for model in model_options()] == [DEFAULT_MODEL_ID]
+    assert is_curated_model(DEFAULT_MODEL_ID)
 
 
 def test_main_ui_loads_model_dropdown_from_api():
@@ -19,6 +70,7 @@ def test_main_ui_loads_model_dropdown_from_api():
 
     assert '<select id="modelId">' in html
     assert "loadModelOptions()" in html
+    assert "if(availableModels[0])$('#modelId').value=availableModels[0].id" in html
     assert "/api/models" in html
     assert '@app.get("/api/models")' in main
     assert 'id="modeNotice"' in html
@@ -73,5 +125,9 @@ def test_clean_load_keeps_current_model_and_locks_compare():
 
 
 def test_compose_does_not_use_model_id_for_service_synchronization():
+    dockerfile = Path("Dockerfile").read_text()
+    assert "COPY models.txt ./models.txt" in dockerfile
     for compose_file in ("docker-compose.yml", "docker-compose.cpu.yml"):
-        assert "MODEL_ID" not in Path(compose_file).read_text()
+        text = Path(compose_file).read_text()
+        assert "MODEL_ID" not in text
+        assert text.count("./models.txt:/workspace/models.txt:ro") == 2

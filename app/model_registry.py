@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Any
 
 # Compact open-weight causal LMs that load through AutoModelForCausalLM and
@@ -101,8 +103,40 @@ MODEL_BY_ID = {item["id"]: item for item in MODEL_OPTIONS}
 DEFAULT_MODEL_ID = "Qwen/Qwen3-0.6B"
 
 
+def models_file_path() -> Path:
+    configured = os.getenv("MODELS_FILE")
+    if configured:
+        return Path(configured)
+    container = Path("/workspace/models.txt")
+    if container.is_file():
+        return container
+    return Path(__file__).resolve().parents[1] / "models.txt"
+
+
+def enabled_model_ids(path: Path | None = None) -> list[str]:
+    source = path or models_file_path()
+    if not source.is_file():
+        return []
+    enabled: list[str] = []
+    seen: set[str] = set()
+    for raw in source.read_text(encoding="utf-8").splitlines():
+        model_id = raw.split("#", 1)[0].strip()
+        if not model_id or model_id in seen:
+            continue
+        seen.add(model_id)
+        enabled.append(model_id)
+    return enabled
+
+
 def model_options() -> list[dict[str, Any]]:
-    return [dict(item) for item in MODEL_OPTIONS]
+    selected = [
+        dict(MODEL_BY_ID[model_id])
+        for model_id in enabled_model_ids()
+        if model_id in MODEL_BY_ID
+    ]
+    if not selected:
+        return [dict(MODEL_BY_ID[DEFAULT_MODEL_ID])]
+    return selected
 
 
 def model_metadata(model_id: str | None) -> dict[str, Any] | None:
@@ -113,4 +147,4 @@ def model_metadata(model_id: str | None) -> dict[str, Any] | None:
 
 
 def is_curated_model(model_id: str) -> bool:
-    return model_id in MODEL_BY_ID
+    return any(item["id"] == model_id for item in model_options())

@@ -1,0 +1,11 @@
+# Leave a line uncommented to show that model in the dropdown.
+# Comment a line to hide it, then restart the containers.
+HuggingFaceTB/SmolLM2-360M-Instruct
+Qwen/Qwen2.5-0.5B-Instruct
+Qwen/Qwen3-0.6B
+# TinyLlama/TinyLlama-1.1B-Chat-v1.0
+# Qwen/Qwen2.5-1.5B-Instruct
+# Qwen/Qwen3-1.7B
+# HuggingFaceTB/SmolLM2-1.7B-Instruct
+# ibm-granite/granite-3.3-2b-instruct
+# HuggingFaceTB/SmolLM3-3B

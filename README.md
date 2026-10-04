@@ -46,9 +46,30 @@ The validator also compares clean-model next-token argmax and greedy continuatio
 - the decoded adversarial text,
 - the exact adversarial token IDs.
 
+## Choose which models appear
+
+[`models.txt`](models.txt) is copied into the image and mounted into both
+services. Uncommented lines are the only models shown in the dropdown and
+accepted by the clean validator. Lines starting with `#` are hidden.
+
+```text
+HuggingFaceTB/SmolLM2-360M-Instruct
+Qwen/Qwen3-0.6B
+# HuggingFaceTB/SmolLM3-3B
+```
+
+Comment or uncomment a line, then restart the containers:
+
+```bash
+docker compose restart
+```
+
+A rebuild is needed only when the image runs without that file mounted. Model
+weights are still downloaded on first load into the shared Hugging Face cache.
+
 ## Default model
 
-The default is:
+When `models.txt` enables nothing, the fallback is:
 
 ```text
 Qwen/Qwen3-0.6B

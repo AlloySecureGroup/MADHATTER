@@ -300,7 +300,9 @@ class AdversarialModelEngine:
 
         current_ids = original_ids.clone()
         changed_positions: set[int] = set()
+        change_steps: dict[int, int] = {}
         history: list[dict[str, float]] = []
+        stop_reason = "max_changes_reached"
         flags = self._freeze_params(model)
         was_training = model.training
         model.eval()
@@ -310,6 +312,7 @@ class AdversarialModelEngine:
                     current_ids, editable_mask, editable_last_n, changed_positions
                 )
                 if not positions:
+                    stop_reason = "no_editable_positions"
                     break
                 embeds = model.get_input_embeddings()(current_ids).detach().requires_grad_(True)
                 out = model(
@@ -326,6 +329,7 @@ class AdversarialModelEngine:
                     current_ids, grad, positions, candidate_top_k, verify_limit=16
                 )
                 if not proposals:
+                    stop_reason = "no_valid_latin_candidates"
                     break
 
                 candidate_ids = current_ids.repeat(len(proposals), 1)
@@ -347,10 +351,12 @@ class AdversarialModelEngine:
 
                 current_loss = float(objective.detach().item())
                 if best_loss <= current_loss + 1e-8:
+                    stop_reason = "no_improving_candidate"
                     break
                 pos, replacement, _ = proposals[best_row]
                 current_ids[0, pos] = replacement
                 changed_positions.add(pos)
+                change_steps[pos] = step + 1
 
                 with torch.no_grad():
                     step_out = model(
@@ -374,6 +380,7 @@ class AdversarialModelEngine:
                 output_hidden_states=True, return_dict=True,
             )
             adv_last = adv_out.logits[:, -1, :]
+            adv_probs = F.softmax(adv_last.float(), dim=-1)
             adv_logp = F.log_softmax(adv_last.float(), dim=-1)
             final_kl = float(F.kl_div(adv_logp, clean_probs, reduction="batchmean").item())
             layer_drift = []
@@ -389,6 +396,8 @@ class AdversarialModelEngine:
             new_id = int(current_ids[0, pos].item())
             changes.append({
                 "position": pos,
+                "prompt_position": pos - span[0] if span else pos,
+                "step": change_steps[pos],
                 "from_id": old_id,
                 "to_id": new_id,
                 "from_token": tok.decode([old_id], skip_special_tokens=False, clean_up_tokenization_spaces=False),
@@ -396,17 +405,44 @@ class AdversarialModelEngine:
             })
 
         if span:
+            original_prompt_ids = original_ids[0, span[0]:span[1]].tolist()
+            adversarial_prompt_ids = current_ids[0, span[0]:span[1]].tolist()
             adversarial_prompt = tok.decode(
-                current_ids[0, span[0]:span[1]].tolist(),
+                adversarial_prompt_ids,
                 skip_special_tokens=False, clean_up_tokenization_spaces=False,
             )
         else:
+            original_prompt_ids = original_ids[0].tolist()
+            adversarial_prompt_ids = current_ids[0].tolist()
             adversarial_prompt = tok.decode(
-                current_ids[0].tolist(), skip_special_tokens=True, clean_up_tokenization_spaces=False
+                adversarial_prompt_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
             )
+
+        prompt_token_diff = []
+        for index, (old_id, new_id) in enumerate(
+            zip(original_prompt_ids, adversarial_prompt_ids)
+        ):
+            prompt_token_diff.append({
+                "index": index,
+                "original": tok.decode(
+                    [old_id],
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=False,
+                ),
+                "adversarial": tok.decode(
+                    [new_id],
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=False,
+                ),
+                "changed": old_id != new_id,
+            })
 
         clean_top = self._token_rows(clean_last, top_k)
         adv_top = self._token_rows(adv_last, top_k)
+        clean_target_probability = float(clean_probs[0, clean_target].item())
+        adversarial_target_probability = float(
+            adv_probs[0, clean_target].item()
+        )
         return {
             "attack_mode": "token_hotflip",
             "model": self.info(),
@@ -417,6 +453,26 @@ class AdversarialModelEngine:
             ),
             "token_count": int(original_ids.shape[1]),
             "token_changes": changes,
+            "prompt_token_diff": prompt_token_diff,
+            "search": {
+                "objective": "maximize_cross_entropy_on_clean_argmax",
+                "clean_target_id": clean_target,
+                "clean_target_token": tok.decode(
+                    [clean_target],
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=False,
+                ),
+                "clean_target_probability": clean_target_probability,
+                "adversarial_target_probability": adversarial_target_probability,
+                "target_probability_drop": (
+                    clean_target_probability - adversarial_target_probability
+                ),
+                "requested_changes": max_token_changes,
+                "applied_changes": len(changes),
+                "candidate_top_k": candidate_top_k,
+                "editable_last_n": editable_last_n,
+                "stop_reason": stop_reason,
+            },
             "input_ids_original": original_ids[0].detach().cpu().tolist(),
             "input_ids_adversarial": current_ids[0].detach().cpu().tolist(),
             "epsilon": None,

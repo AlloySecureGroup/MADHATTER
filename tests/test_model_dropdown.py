@@ -19,3 +19,7 @@ def test_main_ui_loads_model_dropdown_from_api():
     assert "loadModelOptions()" in html
     assert "/api/models" in html
     assert '@app.get("/api/models")' in main
+    assert 'id="modeNotice"' in html
+    assert "Discrete mode ignores ε" in html
+    assert "renderPromptDiff" in html
+    assert "renderGenerationDiff" in html

@@ -7,6 +7,13 @@ validation, cross-model transfer experiments, and black-box Claude Code
 testing. Qwen remains the lightweight default, but the project supports a
 curated set of open-weight causal models through the multi-model lab.
 
+## Start with the illustrated tutorial
+
+See **[Reading a MadHatter Discrete Attack](docs/TUTORIAL.md)** for a
+step-by-step experiment using the UI screenshots, an explanation of every
+control and metric, and guidance for distinguishing local next-token
+sensitivity from a meaningful task-level failure.
+
 ## Services
 
 | Service | Port | Purpose |

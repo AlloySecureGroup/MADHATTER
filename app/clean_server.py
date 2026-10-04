@@ -1,3 +1,4 @@
+import gc
 import os
 import threading
 from typing import Any, Literal
@@ -9,8 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from .model_registry import DEFAULT_MODEL_ID
+from .model_registry import DEFAULT_MODEL_ID, is_curated_model, model_metadata
 from .research_metrics import text_diff
+
+
+class LoadRequest(BaseModel):
+    model_id: str = Field(default=DEFAULT_MODEL_ID, min_length=1, max_length=1000)
 
 
 class EvaluateRequest(BaseModel):
@@ -61,15 +66,31 @@ class CleanModelRunner:
             "adapters_loaded": False,
             "cuda_available": torch.cuda.is_available(),
             "gpu_name": gpu_name,
+            "registry": model_metadata(self.model_id),
         }
 
-    def load(self) -> None:
+    def unload(self) -> None:
         with self.lock:
-            if self.model is not None:
-                return
-            model_id = os.getenv("MODEL_ID", DEFAULT_MODEL_ID)
+            self.model = None
+            self.tokenizer = None
+            self.model_id = None
+            self.device = "cpu"
+            self.dtype = "float32"
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    def load(self, model_id: str | None = None) -> dict[str, Any]:
+        with self.lock:
+            model_id = model_id or self.model_id or os.getenv("MODEL_ID", DEFAULT_MODEL_ID)
+            if self.model is not None and self.model_id == model_id:
+                return self.info()
+            self.unload()
             device = torch.device("cpu") if self.force_cpu or not torch.cuda.is_available() else torch.device("cuda")
-            dtype = torch.float32 if device.type == "cpu" else torch.bfloat16
+            if device.type == "cuda":
+                dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            else:
+                dtype = torch.float32
             tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=False)
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
@@ -85,6 +106,7 @@ class CleanModelRunner:
             self.model_id = model_id
             self.device = str(device)
             self.dtype = str(dtype).replace("torch.", "")
+            return self.info()
 
     def _chat_prompt(self, prompt: str) -> str:
         tok = self.tokenizer
@@ -204,6 +226,16 @@ def health() -> dict[str, Any]:
     return {"ok": True, "model": clean.info()}
 
 
+@app.post("/api/load")
+def load(req: LoadRequest) -> dict[str, Any]:
+    if not is_curated_model(req.model_id):
+        raise HTTPException(status_code=400, detail=f"Clean validator only accepts curated model IDs; unknown: {req.model_id}")
+    try:
+        return {"ok": True, "model": clean.load(req.model_id)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
+
+
 @app.post("/api/evaluate")
 def evaluate(req: EvaluateRequest) -> dict[str, Any]:
     try:
@@ -215,42 +247,43 @@ def evaluate(req: EvaluateRequest) -> dict[str, Any]:
 @app.post("/api/compare")
 def compare(req: CompareRequest) -> dict[str, Any]:
     try:
-        clean.load()
-        if req.expected_model_id and req.expected_model_id != clean.model_id:
-            raise ValueError(
-                f"Model mismatch: MadHatter used {req.expected_model_id!r}, but clean validator is {clean.model_id!r}. "
-                "Start both services with the same MODEL_ID for an exact portability test."
+        with clean.lock:
+            clean.load()
+            if req.expected_model_id and req.expected_model_id != clean.model_id:
+                raise ValueError(
+                    f"Model mismatch: MadHatter used {req.expected_model_id!r}, but clean validator is "
+                    f"{clean.model_id!r}. Load the same model in both services for an exact portability test."
+                )
+            original = clean.evaluate(EvaluateRequest(
+                mode="text", prompt=req.original_prompt, top_k=req.top_k, max_new_tokens=req.max_new_tokens
+            ))
+            adversarial_text = clean.evaluate(EvaluateRequest(
+                mode="text", prompt=req.adversarial_prompt, top_k=req.top_k, max_new_tokens=req.max_new_tokens
+            ))
+            adversarial_exact = clean.evaluate(EvaluateRequest(
+                mode="token_ids", input_ids=req.adversarial_input_ids, top_k=req.top_k,
+                max_new_tokens=req.max_new_tokens
+            ))
+            text_roundtrip_matches_exact = adversarial_text["input_ids"] == req.adversarial_input_ids
+            generation_diff = text_diff(
+                original["generated_text"], adversarial_text["generated_text"]
             )
-        original = clean.evaluate(EvaluateRequest(
-            mode="text", prompt=req.original_prompt, top_k=req.top_k, max_new_tokens=req.max_new_tokens
-        ))
-        adversarial_text = clean.evaluate(EvaluateRequest(
-            mode="text", prompt=req.adversarial_prompt, top_k=req.top_k, max_new_tokens=req.max_new_tokens
-        ))
-        adversarial_exact = clean.evaluate(EvaluateRequest(
-            mode="token_ids", input_ids=req.adversarial_input_ids, top_k=req.top_k,
-            max_new_tokens=req.max_new_tokens
-        ))
-        text_roundtrip_matches_exact = adversarial_text["input_ids"] == req.adversarial_input_ids
-        generation_diff = text_diff(
-            original["generated_text"], adversarial_text["generated_text"]
-        )
-        return {
-            "ok": True,
-            "result": {
-                "model": clean.info(),
-                "original": original,
-                "adversarial_text": adversarial_text,
-                "adversarial_exact": adversarial_exact,
-                "generation_diff": generation_diff,
-                "text_roundtrip_matches_exact": text_roundtrip_matches_exact,
-                "original_vs_text_argmax_changed": (
-                    original["next_argmax"]["id"] != adversarial_text["next_argmax"]["id"]
-                ),
-                "original_vs_exact_argmax_changed": (
-                    original["next_argmax"]["id"] != adversarial_exact["next_argmax"]["id"]
-                ),
-            },
-        }
+            return {
+                "ok": True,
+                "result": {
+                    "model": clean.info(),
+                    "original": original,
+                    "adversarial_text": adversarial_text,
+                    "adversarial_exact": adversarial_exact,
+                    "generation_diff": generation_diff,
+                    "text_roundtrip_matches_exact": text_roundtrip_matches_exact,
+                    "original_vs_text_argmax_changed": (
+                        original["next_argmax"]["id"] != adversarial_text["next_argmax"]["id"]
+                    ),
+                    "original_vs_exact_argmax_changed": (
+                        original["next_argmax"]["id"] != adversarial_exact["next_argmax"]["id"]
+                    ),
+                },
+            }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc

@@ -21,9 +21,9 @@ sensitivity from a meaningful task-level failure.
 | `madhatter-lab` | `8000` | Find perturbations, inspect token/logit drift, and optionally post-train LoRA |
 | `clean-model` | `8001` | Independent base-model instance; no adapters; validates portability of MadHatter examples |
 
-Both services use the same `MODEL_ID` environment variable and share only the Hugging Face model cache. They are separate processes with separately loaded model objects. The clean service never loads the adapter directory. For curated cross-family sweeps, model metadata, and the resilience matrix, use [`resileince/`](resileince/).
+They are separate processes with separately loaded model objects and share only the Hugging Face model cache. Choosing a model in the UI loads that curated checkpoint into both services through their `/api/load` endpoints. The UI reports attack-service and clean-validator loading failures independently. The clean service never loads the adapter directory. For curated cross-family sweeps, model metadata, and the resilience matrix, use [`resileince/`](resileince/).
 
-The clean model loads lazily when you first validate an example, so starting Compose does not immediately allocate memory for two model copies.
+Starting Compose does not allocate model memory. Models load when selected in the UI or lazily on first use.
 
 ## Why the clean validator matters
 
@@ -54,17 +54,28 @@ The default is:
 Qwen/Qwen3-0.6B
 ```
 
-Override both containers together:
+`MODEL_ID` is an optional lazy-load default for direct API use; it is not how
+the two running services are synchronized. Compose does not bake it into
+either service. To configure a fallback in a custom deployment, set it in
+each service environment:
 
 ```bash
-MODEL_ID=Qwen/Qwen3-1.7B docker compose up --build
+MODEL_ID=Qwen/Qwen3-1.7B uvicorn app.main:app --port 8000
 ```
 
-For a local Transformers checkpoint:
+For a local Transformers checkpoint, port 8000 still accepts a mounted path
+through its load API:
 
 ```bash
-MODEL_ID=/models/my-model docker compose up --build
+curl -X POST http://localhost:8000/api/load \
+  -H 'content-type: application/json' \
+  -d '{"model_id":"/models/my-model"}'
 ```
+
+The browser-facing clean load endpoint accepts only registry models. This
+prevents arbitrary checkpoint downloads or filesystem paths through its
+permissive local CORS API. Operators can still use `MODEL_ID` as the clean
+service's lazy fallback for a trusted local checkpoint.
 
 Keep both services on the **same checkpoint/tokenizer** for an exact token-ID portability test. The clean API rejects a comparison when the lab-reported model ID and clean validator model ID do not match.
 
@@ -110,6 +121,18 @@ This starts both services on CPU. It is slower but provides the same validation 
 ```bash
 curl http://localhost:8001/api/health
 ```
+
+### Load a curated model
+
+```bash
+curl -X POST http://localhost:8001/api/load \
+  -H 'content-type: application/json' \
+  -d '{"model_id":"Qwen/Qwen3-0.6B"}'
+```
+
+The model must be present in `app/model_registry.py`. Switching is serialized,
+unloads the previous model, releases cached accelerator memory, and then loads
+the selected checkpoint.
 
 ### Evaluate normal text
 

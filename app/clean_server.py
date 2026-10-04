@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .model_registry import DEFAULT_MODEL_ID
+from .research_metrics import text_diff
 
 
 class EvaluateRequest(BaseModel):
@@ -231,6 +232,9 @@ def compare(req: CompareRequest) -> dict[str, Any]:
             max_new_tokens=req.max_new_tokens
         ))
         text_roundtrip_matches_exact = adversarial_text["input_ids"] == req.adversarial_input_ids
+        generation_diff = text_diff(
+            original["generated_text"], adversarial_text["generated_text"]
+        )
         return {
             "ok": True,
             "result": {
@@ -238,6 +242,7 @@ def compare(req: CompareRequest) -> dict[str, Any]:
                 "original": original,
                 "adversarial_text": adversarial_text,
                 "adversarial_exact": adversarial_exact,
+                "generation_diff": generation_diff,
                 "text_roundtrip_matches_exact": text_roundtrip_matches_exact,
                 "original_vs_text_argmax_changed": (
                     original["next_argmax"]["id"] != adversarial_text["next_argmax"]["id"]

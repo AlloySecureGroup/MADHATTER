@@ -156,6 +156,13 @@ score(i, j) ≈ grad(E_i) · (E_j - E_i)
 
 then verifies the strongest candidates using actual `input_ids`. The result therefore becomes a real discrete source-model token sequence rather than only a hidden continuous embedding tensor.
 
+Discrete mode does not use the embedding-PGD ε, step-size, norm, or divergence
+controls. It greedily maximizes cross-entropy on the clean model's original
+top next token, applies at most the requested number of verified edits, and
+stops early if no valid candidate improves that objective. The UI reports the
+actual edit count, stop reason, original-target probability drop, next-token
+KL, and highlighted token changes.
+
 Replacement candidates are restricted to Unicode Latin letters, ASCII digits,
 ASCII punctuation, and common whitespace. Tokens containing CJK, Hangul,
 Kana, Cyrillic, Arabic, emoji, other controls, or undecodable byte fragments
@@ -184,6 +191,12 @@ Then validate the resulting discrete examples on port 8001 to determine whether 
 A perturbation can be highly effective on a sensitivity-trained MadHatter model but fail on the untouched clean checkpoint. That is a meaningful result: it means the effect was learned by the adapter rather than being a transferable property of the original base model.
 
 Conversely, if the exact token sequence changes the clean checkpoint's next-token distribution or generation too, the perturbation transfers independently of the LoRA changes.
+
+A next-token argmax flip establishes local sensitivity, not automatically a
+meaningful task-level failure. The clean validator therefore also reports
+greedy-generation similarity and highlights changed output spans. Stronger
+evidence combines a reproducible token-level shift with sustained generation
+differences and task-specific evaluation across multiple prompts.
 
 ## Claude Code resilience harness
 

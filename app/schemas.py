@@ -5,7 +5,7 @@ from .model_registry import DEFAULT_MODEL_ID
 
 
 class LoadRequest(BaseModel):
-    model_id: str = Field(default=DEFAULT_MODEL_ID, min_length=1)
+    model_id: str = Field(default=DEFAULT_MODEL_ID, min_length=1, max_length=1000)
 
 
 class AttackRequest(BaseModel):

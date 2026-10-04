@@ -72,9 +72,14 @@ class AdversarialModelEngine:
 
     def load_model(self, model_id: str) -> dict[str, Any]:
         with self.lock:
+            if self.loaded and self.state.model_id == model_id:
+                return self.info()
             self.unload()
             device = self._device()
-            dtype = torch.bfloat16 if device.type == "cuda" else torch.float32
+            if device.type == "cuda":
+                dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            else:
+                dtype = torch.float32
 
             tokenizer = AutoTokenizer.from_pretrained(
                 model_id,

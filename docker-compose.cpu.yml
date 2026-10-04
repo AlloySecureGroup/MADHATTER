@@ -4,7 +4,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      MODEL_ID: ${MODEL_ID:-Qwen/Qwen3-0.6B}
       HF_HOME: /data/hf-cache
       ADAPTER_ROOT: /data/adapters
       FORCE_CPU: "1"
@@ -21,7 +20,6 @@ services:
     ports:
       - "8001:8001"
     environment:
-      MODEL_ID: ${MODEL_ID:-Qwen/Qwen3-0.6B}
       HF_HOME: /data/hf-cache
       FORCE_CPU: "1"
     volumes:

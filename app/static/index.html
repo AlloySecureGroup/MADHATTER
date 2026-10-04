@@ -24,8 +24,8 @@
     <aside class="card sidebar">
       <div class="field"><span class="label">Model</span><select id="modelId"><option value="">Loading models…</option></select></div>
       <div id="modelChoiceMeta" class="mini" style="margin:-7px 0 12px">Loading curated model list…</div>
-      <div class="buttonrow"><button id="loadBtn" class="primary">Load model</button><button id="refreshBtn" class="secondary">Status</button></div>
-      <div id="modelMeta" class="notice" style="margin-top:14px">Model not loaded yet.</div>
+      <div class="buttonrow"><button id="loadBtn" class="primary">Load both</button><button id="refreshBtn" class="secondary">Status</button></div>
+      <div id="modelMeta" class="notice" style="margin-top:14px"><b>Attack service :8000</b><br>Model not loaded yet.</div>
       <div style="height:18px"></div>
       <span class="label">What this lab does</span>
       <div class="mini">1. Embedding mode ascends loss in continuous prompt space.</div>
@@ -36,7 +36,7 @@
       <span class="label">Clean validator</span>
       <div class="field"><input id="cleanUrl" placeholder="http://localhost:8001" /></div>
       <div class="buttonrow"><button id="cleanStatusBtn" class="secondary">Check :8001</button></div>
-      <div id="cleanMeta" class="mini" style="margin-top:8px">Independent base model; no LoRA adapter.</div>
+      <div id="cleanMeta" class="notice" style="margin-top:8px"><b>Clean validator :8001</b><br>Independent base model; no LoRA adapter.</div>
     </aside>
 
     <main class="card main">
@@ -146,15 +146,25 @@ $('#cleanUrl').value=defaultCleanUrl();
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 async function api(path, opts={}){const r=await fetch(path,{headers:{'Content-Type':'application/json'},...opts}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.detail||`HTTP ${r.status}`); return j}
 async function cleanApi(path, opts={}){const base=$('#cleanUrl').value.trim().replace(/\/$/,'')||defaultCleanUrl();const r=await fetch(base+path,{headers:{'Content-Type':'application/json'},...opts});const j=await r.json().catch(()=>({}));if(!r.ok) throw new Error(j.detail||`Clean model HTTP ${r.status}`);return j}
-function setBusy(btn,busy,label){if(busy){btn.dataset.old=btn.textContent;btn.innerHTML='<span class="spin"></span>'+label;btn.disabled=true}else{btn.textContent=btn.dataset.old||label;btn.disabled=false}}
+function setBusy(btn,busy,label){if(busy){if(!btn.disabled)btn.dataset.old=btn.textContent;btn.innerHTML='<span class="spin"></span>'+label;btn.disabled=true}else{btn.textContent=btn.dataset.old||label;btn.disabled=false}}
 function modelLabel(m){return `${m.name} · ${m.params_b}B`}
 function updateModelChoiceMeta(){const m=availableModels.find(x=>x.id===$('#modelId').value);$('#modelChoiceMeta').textContent=m?`${m.family} · ${m.license} · ${m.notes}`:'Select a curated open-weight model.'}
 async function loadModelOptions(){try{const j=await api('/api/models');availableModels=j.models||[];$('#modelId').innerHTML=availableModels.map(m=>`<option value="${esc(m.id)}">${esc(modelLabel(m))}</option>`).join('');const preferred=availableModels.find(m=>m.id==='Qwen/Qwen3-0.6B')||availableModels[0];if(preferred)$('#modelId').value=preferred.id;updateModelChoiceMeta()}catch(e){$('#modelChoiceMeta').textContent='Could not load model registry: '+e.message;$('#modelId').innerHTML='<option value="">Model registry unavailable</option>';$('#loadBtn').disabled=true}}
-$('#modelId').onchange=updateModelChoiceMeta;
-async function refresh(){try{const j=await api('/api/health');const m=j.model;if(m.loaded&&availableModels.some(x=>x.id===m.model_id)){$('#modelId').value=m.model_id;updateModelChoiceMeta()}$('#statusDot').className='dot '+(m.loaded?'ok':'');$('#statusText').textContent=m.loaded?`${m.model_id} · ${m.device}`:'Backend ready · model not loaded';$('#modelMeta').innerHTML=m.loaded?`<b>${esc(m.model_id)}</b><br><span class="mini">device: ${esc(m.device)} · dtype: ${esc(m.dtype)}${m.gpu_name?` · ${esc(m.gpu_name)}`:''}${m.has_lora?' · LoRA active':''}</span>`:'Model not loaded yet.'}catch(e){$('#statusText').textContent='Backend unavailable';$('#modelMeta').textContent=e.message}}
+function renderAttackStatus(m){$('#statusDot').className='dot '+(m.loaded?'ok':'');$('#statusText').textContent=m.loaded?`Attack: ${m.model_id} · ${m.device}`:'Attack service ready · model not loaded';$('#modelMeta').innerHTML=m.loaded?`<b>Attack service :8000 · ready</b><br>${esc(m.model_id)}<br><span class="mini">device: ${esc(m.device)} · dtype: ${esc(m.dtype)}${m.gpu_name?` · ${esc(m.gpu_name)}`:''}${m.has_lora?' · LoRA active':''}</span>`:'<b>Attack service :8000</b><br>Model not loaded yet.'}
+function renderCleanStatus(m){$('#cleanMeta').innerHTML=m.loaded?`<b>Clean validator :8001 · ready</b><br>${esc(m.model_id)}<br><span class="mini">device: ${esc(m.device)} · dtype: ${esc(m.dtype)} · adapters: none</span>`:'<b>Clean validator :8001 · ready</b><br>Model not loaded yet · adapters: none'}
+async function refreshAttack(){try{const j=await api('/api/health');renderAttackStatus(j.model);return j.model}catch(e){$('#statusDot').className='dot';$('#statusText').textContent='Attack service unavailable';$('#modelMeta').innerHTML=`<b>Attack service :8000 · unavailable</b><br>${esc(e.message)}`;throw e}}
+async function refreshClean(){try{const j=await cleanApi('/api/health');renderCleanStatus(j.model);return j.model}catch(e){$('#cleanMeta').innerHTML=`<b>Clean validator :8001 · unavailable</b><br>${esc(e.message)}`;throw e}}
+async function refresh(){await Promise.allSettled([refreshAttack(),refreshClean()])}
+let modelLoadSequence=0;
+async function loadSelectedModel(){const modelId=$('#modelId').value.trim(),b=$('#loadBtn'),sequence=++modelLoadSequence;if(!modelId)return;lastAttackResult=null;$('#attackResults').classList.add('hidden');$('#cleanValidation').classList.add('hidden');$('#attackError').classList.add('hidden');setBusy(b,true,'Loading both…');$('#modelId').disabled=true;$('#statusDot').className='dot';$('#statusText').textContent=`Attack loading ${modelId}…`;$('#modelMeta').innerHTML=`<b>Attack service :8000 · loading</b><br>${esc(modelId)}`;$('#cleanMeta').innerHTML=`<b>Clean validator :8001 · loading</b><br>${esc(modelId)} · adapters: none`;
+  const body=JSON.stringify({model_id:modelId});
+  const attack=api('/api/load',{method:'POST',body}).then(j=>{if(sequence===modelLoadSequence)renderAttackStatus(j.model);return j}).catch(e=>{if(sequence===modelLoadSequence){$('#statusText').textContent='Attack model load failed';$('#modelMeta').innerHTML=`<b>Attack service :8000 · load failed</b><br>${esc(e.message)}`}throw e});
+  const validator=cleanApi('/api/load',{method:'POST',body}).then(j=>{if(sequence===modelLoadSequence)renderCleanStatus(j.model);return j}).catch(e=>{if(sequence===modelLoadSequence)$('#cleanMeta').innerHTML=`<b>Clean validator :8001 · load failed</b><br>${esc(e.message)}`;throw e});
+  const results=await Promise.allSettled([attack,validator]);if(sequence===modelLoadSequence){setBusy(b,false,'Load both');$('#modelId').disabled=false;const failures=results.filter(x=>x.status==='rejected').map(x=>x.reason.message);if(failures.length)alert(`Model loading did not complete in both services:\n${failures.join('\n')}`)}}
+$('#modelId').onchange=()=>{updateModelChoiceMeta();loadSelectedModel()};
 $('#refreshBtn').onclick=refresh;
-$('#cleanStatusBtn').onclick=async()=>{const b=$('#cleanStatusBtn');setBusy(b,true,'Checking…');try{const j=await cleanApi('/api/health');const m=j.model;$('#cleanMeta').innerHTML=`<b>clean service ready</b><br>${esc(m.model_id||'model loads on first validation')} · ${esc(m.device||'not loaded')} · adapters: none`;}catch(e){$('#cleanMeta').textContent=e.message}finally{setBusy(b,false,'Check :8001')}};
-$('#loadBtn').onclick=async()=>{const b=$('#loadBtn');setBusy(b,true,'Loading…');try{await api('/api/load',{method:'POST',body:JSON.stringify({model_id:$('#modelId').value.trim()})});await refresh()}catch(e){alert(e.message)}finally{setBusy(b,false,'Load model')}};
+$('#cleanStatusBtn').onclick=async()=>{const b=$('#cleanStatusBtn');setBusy(b,true,'Checking…');try{await refreshClean()}catch{}finally{setBusy(b,false,'Check :8001')}};
+$('#loadBtn').onclick=loadSelectedModel;
 $$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===t));$$('.pane').forEach(p=>p.classList.toggle('active',p.id===t.dataset.pane))});
 function renderTable(id,rows){const max=Math.max(...rows.map(x=>x.prob),.00001);$(id).innerHTML=rows.map(r=>`<tr><td class="token">${esc(JSON.stringify(r.token).slice(1,-1))}</td><td>${(r.prob*100).toFixed(2)}%</td><td style="width:42%"><div class="bar"><i style="width:${100*r.prob/max}%"></i></div></td></tr>`).join('')}
 function updateAttackModeUi(){const discrete=$('#attackMode').value==='token_hotflip';$$('.token-control').forEach(x=>x.classList.toggle('control-hidden',!discrete));$$('.pgd-control').forEach(x=>x.classList.toggle('control-hidden',discrete));$('#methodTitle').textContent=discrete?'Search high-impact token substitutions':'Find the highest-loss embedding direction';$('#methodDescription').textContent=discrete?'Use gradients to rank Latin-script vocabulary replacements, verify each proposal with a real forward pass, and measure whether next-token behavior changes.':'Search a norm-bounded neighborhood around the prompt embeddings and measure changes in next-token distributions and hidden states.';$('#methodPill').textContent=discrete?'discrete HotFlip search':'projected gradient ascent';$('#methodFormula').innerHTML=discrete?'x* = arg max<sub># edits ≤ k</sub> −log p(y<sub>clean</sub> | x*)':'δ* = arg max<sub>||δ||≤ε</sub> D(f(E(x)), f(E(x)+δ))';$('#modeNotice').textContent=discrete?'Discrete mode ignores ε, step size, PGD steps, norm, and the embedding objective. It greedily applies up to k verified token edits and stops early when no valid Latin-script candidate increases loss.':'Embedding mode uses ε, step size, PGD steps, norm, and the selected divergence objective. Token-edit controls do not apply.'}
@@ -165,10 +175,11 @@ $('#attackMode').onchange=updateAttackModeUi;
 function drawLine(canvas,values){const dpr=devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);const pad=25,max=Math.max(...values,1e-8),min=Math.min(...values,0);c.strokeStyle='#23364a';c.lineWidth=1;for(let i=0;i<4;i++){const y=pad+(h-2*pad)*i/3;c.beginPath();c.moveTo(pad,y);c.lineTo(w-pad,y);c.stroke()}c.strokeStyle='#71c0ff';c.lineWidth=2;c.beginPath();values.forEach((v,i)=>{const x=pad+(w-2*pad)*(values.length===1?.5:i/(values.length-1));const y=h-pad-(h-2*pad)*(v-min)/(max-min||1);i?c.lineTo(x,y):c.moveTo(x,y)});c.stroke()}
 function drawBars(canvas,rows){const vals=rows.map(x=>x.cosine_distance),dpr=devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);const pad=24,max=Math.max(...vals,1e-8),bw=(w-2*pad)/vals.length;c.fillStyle='#7ee787';vals.forEach((v,i)=>{const bh=(h-2*pad)*v/max;c.fillRect(pad+i*bw+1,h-pad-bh,Math.max(1,bw-2),bh)});c.fillStyle='#7f93a8';c.font='10px system-ui';c.fillText(`max ${max.toExponential(2)}`,pad,12)}
 $('#attackBtn').onclick=async()=>{
-  const b=$('#attackBtn'),err=$('#attackError');err.classList.add('hidden');setBusy(b,true,'Searching…');
+  const b=$('#attackBtn'),err=$('#attackError'),sequence=modelLoadSequence;err.classList.add('hidden');setBusy(b,true,'Searching…');
   try{
     const body={prompt:$('#prompt').value,mode:$('#attackMode').value,epsilon:+$('#epsilon').value,step_size:+$('#stepSize').value,steps:+$('#steps').value,norm:$('#norm').value,objective:$('#objective').value,hidden_weight:1,top_k:8,random_start:true,max_token_changes:+$('#tokenChanges').value,candidate_top_k:+$('#candidateTopK').value,editable_last_n:+$('#editableLastN').value};
     const j=await api('/api/analyze',{method:'POST',body:JSON.stringify(body)}),r=j.result;
+    if(sequence!==modelLoadSequence)return;
     lastAttackResult=r;$('#cleanValidation').classList.add('hidden');$('#mKL').textContent=r.final_kl.toExponential(3);$('#mFlip').textContent=r.argmax_changed?'YES':'no';renderTable('#cleanTable',r.clean_top);renderTable('#advTable',r.adversarial_top);
     const box=$('#tokenEditBox');
     if(r.attack_mode==='token_hotflip'){
@@ -180,19 +191,19 @@ $('#attackBtn').onclick=async()=>{
       box.classList.add('hidden');$('#mLinf').textContent=r.delta_linf.toFixed(4);$('#mLinfLabel').textContent='δ L∞';$('#mL2').textContent=r.delta_l2.toFixed(3);$('#mL2Label').textContent='δ L2';$('#mKLLabel').textContent='Final KL';$('#historyTitle').textContent='PGD objective by step';
     }
     $('#attackResults').classList.remove('hidden');drawLine($('#historyChart'),r.history.map(x=>x.objective));drawBars($('#layerChart'),r.layer_drift);
-  }catch(e){err.textContent=e.message;err.classList.remove('hidden')}finally{setBusy(b,false,'Run adversarial search')}
+  }catch(e){if(sequence===modelLoadSequence){err.textContent=e.message;err.classList.remove('hidden')}}finally{setBusy(b,false,'Run adversarial search')}
 };
 $('#validateCleanBtn').onclick=async()=>{
-  const b=$('#validateCleanBtn');if(!lastAttackResult||lastAttackResult.attack_mode!=='token_hotflip'){alert('Run a discrete MadHatter token attack first.');return}setBusy(b,true,'Validating…');
+  const b=$('#validateCleanBtn');if(!lastAttackResult||lastAttackResult.attack_mode!=='token_hotflip'){alert('Run a discrete MadHatter token attack first.');return}const sequence=modelLoadSequence;setBusy(b,true,'Validating…');
   try{
     const body={expected_model_id:lastAttackResult.model?.model_id||null,original_prompt:$('#prompt').value,adversarial_prompt:lastAttackResult.adversarial_prompt,adversarial_input_ids:lastAttackResult.input_ids_adversarial,top_k:8,max_new_tokens:48};
-    const j=await cleanApi('/api/compare',{method:'POST',body:JSON.stringify(body)}),r=j.result,rt=r.text_roundtrip_matches_exact,d=r.generation_diff;
+    const j=await cleanApi('/api/compare',{method:'POST',body:JSON.stringify(body)});if(sequence!==modelLoadSequence)return;const r=j.result,rt=r.text_roundtrip_matches_exact,d=r.generation_diff;
     $('#cleanValidationMeta').innerHTML=`<b>${esc(r.model.model_id)}</b> · ${esc(r.model.device)} · no adapters<br>Decoded-text round trip: <b>${rt?'exact token match':'DIFFERENT tokenization'}</b> · text argmax flip: <b>${r.original_vs_text_argmax_changed?'YES':'no'}</b> · exact-ID argmax flip: <b>${r.original_vs_exact_argmax_changed?'YES':'no'}</b>`;
     $('#generationResearch').innerHTML=`Greedy-generation similarity: <b>${(100*d.similarity).toFixed(1)}%</b> · exact match: <b>${d.exact_match?'YES':'no'}</b>. Highlighting shows changed spans. A next-token flip is evidence of local sensitivity, but only sustained generation differences indicate broader behavioral impact.`;
     renderGenerationDiff('#cleanOriginalGen',d.original,'diff-remove',r.original.generated_text);renderGenerationDiff('#cleanAdvTextGen',d.adversarial,'diff-add',r.adversarial_text.generated_text);$('#cleanAdvExactGen').textContent=r.adversarial_exact.generated_text||'(no visible continuation)';
     const a=r.original.next_argmax,b1=r.adversarial_text.next_argmax,b2=r.adversarial_exact.next_argmax;$('#cleanNextSummary').textContent=`original: ${JSON.stringify(a?.token)} [${a?.id}]\nadversarial text: ${JSON.stringify(b1?.token)} [${b1?.id}]\nadversarial exact IDs: ${JSON.stringify(b2?.token)} [${b2?.id}]`;
     $('#cleanValidation').classList.remove('hidden');$('#cleanValidation').scrollIntoView({behavior:'smooth',block:'nearest'});
-  }catch(e){const box=$('#attackError');box.textContent='Clean validator: '+e.message;box.classList.remove('hidden')}finally{setBusy(b,false,'Run example in clean model :8001')}
+  }catch(e){if(sequence===modelLoadSequence){const box=$('#attackError');box.textContent='Clean validator: '+e.message;box.classList.remove('hidden')}}finally{setBusy(b,false,'Run example in clean model :8001')}
 };
 function parseJsonl(t){return t.split(/\n+/).map(x=>x.trim()).filter(Boolean).map((line,i)=>{try{return JSON.parse(line)}catch(e){throw new Error(`JSONL line ${i+1}: ${e.message}`)}})}
 let pollTimer=null;

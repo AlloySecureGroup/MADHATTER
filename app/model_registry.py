@@ -110,3 +110,7 @@ def model_metadata(model_id: str | None) -> dict[str, Any] | None:
         return None
     item = MODEL_BY_ID.get(model_id)
     return dict(item) if item else None
+
+
+def is_curated_model(model_id: str) -> bool:
+    return model_id in MODEL_BY_ID

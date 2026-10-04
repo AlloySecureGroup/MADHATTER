@@ -151,6 +151,11 @@ score(i, j) ≈ grad(E_i) · (E_j - E_i)
 
 then verifies the strongest candidates using actual `input_ids`. The result therefore becomes a real discrete Qwen token sequence rather than only a hidden continuous embedding tensor.
 
+Replacement candidates are restricted to Unicode Latin letters, ASCII digits,
+ASCII punctuation, and common whitespace. Tokens containing CJK, Hangul,
+Kana, Cyrillic, Arabic, emoji, other controls, or undecodable byte fragments
+are excluded before ranking.
+
 ## Post-training goals
 
 MadHatter keeps two LoRA objectives:

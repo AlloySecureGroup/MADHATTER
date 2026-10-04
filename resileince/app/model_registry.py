@@ -85,6 +85,16 @@ MODEL_OPTIONS: list[dict[str, Any]] = [
         "recommended": False,
         "notes": "IBM Apache-2.0 instruct model; useful architecture-diverse target.",
     },
+    {
+        "id": "HuggingFaceTB/SmolLM3-3B",
+        "name": "SmolLM3 3B",
+        "family": "SmolLM3",
+        "params_b": 3.0,
+        "license": "Apache-2.0",
+        "tier": "medium",
+        "recommended": False,
+        "notes": "Reasonable 3B checkpoint for a stronger Apache-2.0 comparison.",
+    },
 ]
 
 MODEL_BY_ID = {item["id"]: item for item in MODEL_OPTIONS}

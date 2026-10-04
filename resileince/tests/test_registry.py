@@ -6,6 +6,7 @@ def test_curated_model_count_and_uniqueness():
     ids = [m["id"] for m in MODEL_OPTIONS]
     assert len(ids) == len(set(ids))
     assert DEFAULT_MODEL_ID in ids
+    assert "HuggingFaceTB/SmolLM3-3B" in ids
 
 
 def test_registry_contract():

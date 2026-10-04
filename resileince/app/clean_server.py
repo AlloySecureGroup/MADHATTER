@@ -50,7 +50,7 @@ class ResilienceRequest(BaseModel):
     source_model_id: str | None = Field(default=None, max_length=1000)
     original_prompt: str = Field(min_length=1, max_length=12000)
     adversarial_prompt: str = Field(min_length=1, max_length=12000)
-    model_ids: list[str] = Field(min_length=1, max_length=8)
+    model_ids: list[str] = Field(min_length=1, max_length=10)
     top_k: int = Field(default=8, ge=1, le=30)
     max_new_tokens: int = Field(default=32, ge=1, le=128)
 

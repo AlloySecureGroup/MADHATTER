@@ -11,6 +11,7 @@ services:
       - model_hf_cache:/data/hf-cache
       - ./adapters:/data/adapters
       - ./models:/models:ro
+      - ./models.txt:/workspace/models.txt:ro
     shm_size: "2gb"
     restart: unless-stopped
 
@@ -25,6 +26,7 @@ services:
     volumes:
       - model_hf_cache:/data/hf-cache
       - ./models:/models:ro
+      - ./models.txt:/workspace/models.txt:ro
     shm_size: "2gb"
     restart: unless-stopped
 

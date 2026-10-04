@@ -13,6 +13,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY app ./app
 COPY samples ./samples
+COPY models.txt ./models.txt
 
 RUN mkdir -p /data/hf-cache /data/adapters /models
 
